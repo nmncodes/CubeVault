@@ -13,6 +13,11 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["fontSerif", '"fontSerif Fallback"', "serif"],
+        serif: ["fontSerif", '"fontSerif Fallback"', "serif"],
+        mono: ["fontSerif", '"fontSerif Fallback"', "serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

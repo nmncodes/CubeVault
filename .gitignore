@@ -7,10 +7,16 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+
+# Build outputs
 dist
 dist-ssr
 *.local
+
+# TypeScript
+*.tsbuildinfo
 
 # Editor directories and files
 .vscode/*
@@ -23,23 +29,29 @@ dist-ssr
 *.sln
 *.sw?
 
-# Vite and Build
-dist
-dist-ssr
-*.local
-node_modules
-
 # Environment
 .env
 .env.*
 !.env.example
 
-# Test
+# Test & Coverage
 coverage
+.coverage/
 playwright-report
 test-results
+.vitest/
 
-# Bun (if used)
+# ESLint
+.eslintcache
+
+# Python (solver)
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Deployment
 bun.lockb
 .vercel
 .netlify

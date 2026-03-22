@@ -103,26 +103,26 @@ const Timer = ({ onSolve }: TimerProps) => {
 
   const colorClass =
     state === "ready"
-      ? "text-[hsl(var(--timer-ready))] animate-pulse-ready"
+      ? "text-[hsl(var(--timer-ready))]"
       : state === "holding"
         ? "text-[hsl(var(--timer-running))]"
         : state === "running"
-          ? "text-foreground"
+          ? "text-[hsl(var(--timer-ready))]"
           : "text-[hsl(var(--timer-idle))]";
 
   return (
     <div
-      className="flex flex-col items-center justify-center flex-1 select-none cursor-pointer min-h-[40vh]"
+      className="flex flex-col items-center justify-center flex-1 select-none cursor-pointer min-h-[50vh]"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
       <span
-        className={`font-mono-timer text-7xl sm:text-8xl md:text-9xl font-bold transition-colors duration-150 ${colorClass}`}
+        className={`font-mono-timer text-[5.5rem] sm:text-[7rem] md:text-[9.5rem] lg:text-[11rem] xl:text-[12rem] font-bold tracking-tight transition-colors duration-150 ${colorClass}`}
         style={{ lineHeight: 1 }}
       >
         {display}
       </span>
-      <p className="mt-6 text-muted-foreground text-sm">
+      <p className="mt-6 text-muted-foreground text-base md:text-lg">
         {state === "idle" && "Hold space to start"}
         {state === "holding" && "Hold..."}
         {state === "ready" && "Release to start!"}

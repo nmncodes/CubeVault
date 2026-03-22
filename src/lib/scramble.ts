@@ -46,6 +46,22 @@ export interface Solve {
   scramble: string;
   date: Date;
   penalty?: "+2" | "DNF";
+  recommendedSolution?: RecommendedSolution;
+}
+
+export interface RecommendedSolution {
+  method: string;
+  algorithm: string;
+  moveCount: number;
+  states: string[];
+  backend?: string;
+  generatedAt: string;
+}
+
+export function getMean(solves: Solve[]): number | null {
+  const validTimes = solves.map(getEffectiveTime).filter((time) => time > 0);
+  if (validTimes.length === 0) return null;
+  return validTimes.reduce((sum, time) => sum + time, 0) / validTimes.length;
 }
 
 export function getAo(solves: Solve[], n: number): number | null {

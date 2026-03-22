@@ -1,0 +1,54 @@
+import { RecommendedSolution } from "@/lib/scramble";
+
+type SolverApiResponse = {
+  method: string;
+  algorithm: string;
+  moveCount: number;
+  states: string[];
+  backend?: string;
+};
+
+export async function fetchSolutionForScramble(
+  scramble: string,
+  signal?: AbortSignal
+): Promise<RecommendedSolution> {
+  const response = await fetch("/api/solve", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ scramble, method: "Kociemba" }),
+    signal,
+  });
+
+  const data = (await response.json().catch(() => null)) as
+    | (Partial<SolverApiResponse> & { error?: string })
+    | null;
+
+  if (!response.ok) {
+    const message =
+      (data && typeof data.error === "string" && data.error) ||
+      `Solver request failed (${response.status})`;
+    throw new Error(message);
+  }
+
+  if (
+    !data ||
+    typeof data.method !== "string" ||
+    typeof data.algorithm !== "string" ||
+    typeof data.moveCount !== "number" ||
+    !Array.isArray(data.states) ||
+    !data.states.every((state) => typeof state === "string")
+  ) {
+    throw new Error("Solver returned an invalid response.");
+  }
+
+  return {
+    method: data.method,
+    algorithm: data.algorithm,
+    moveCount: data.moveCount,
+    states: data.states,
+    backend: data.backend,
+    generatedAt: new Date().toISOString(),
+  };
+}
