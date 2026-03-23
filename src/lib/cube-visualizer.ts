@@ -2,15 +2,15 @@ export type CubeFaceName = "U" | "R" | "F" | "L" | "B" | "D";
 
 const FACE_ORDER: CubeFaceName[] = ["U", "R", "F", "L", "B", "D"];
 const SOLVED_STATE =
-  "yyyyyyyyybbbbbbbbbrrrrrrrrrgggggggggooooooooowwwwwwwww";
+  "yyyyyyyyygggggggggrrrrrrrrrbbbbbbbbbooooooooowwwwwwwww";
 
 const STICKER_COLORS: Record<string, string> = {
   y: "#facc15",
   w: "#f8fafc",
   r: "#ef4444",
   o: "#f97316",
-  b: "#3b82f6",
-  g: "#22c55e",
+  b: "#22c55e",
+  g: "#3b82f6",
 };
 
 export function parseAlgorithm(algorithm: string): string[] {
@@ -18,6 +18,19 @@ export function parseAlgorithm(algorithm: string): string[] {
     .trim()
     .split(/\s+/)
     .filter(Boolean);
+}
+
+export function inverseMove(token: string): string {
+  const trimmed = token.trim();
+  if (!trimmed) return trimmed;
+  if (trimmed.endsWith("2")) return trimmed;
+  if (trimmed.endsWith("'")) return trimmed.slice(0, -1);
+  return `${trimmed}'`;
+}
+
+export function invertAlgorithm(algorithm: string | string[]): string[] {
+  const moves = Array.isArray(algorithm) ? algorithm : parseAlgorithm(algorithm);
+  return [...moves].reverse().map((move) => inverseMove(move));
 }
 
 function normalizeState(rawState: string): string {

@@ -104,39 +104,47 @@ const Index = () => {
   const [solutionError, setSolutionError] = useState<string>();
   const [replaySolve, setReplaySolve] = useState<Solve | null>(null);
   const [replayOpen, setReplayOpen] = useState(false);
-  const [aboutOpen, setAboutOpen] = useState(false);
+  const cubePalette = [
+    "#ef4444",
+    "#22c55e",
+    "#3b82f6",
+    "#f8fafc",
+    "#facc15",
+    "#f97316",
+  ];
 
-  const minimalThemeVars: CSSProperties = {
-    "--background": "0 0% 100%",
-    "--foreground": "0 0% 8%",
+  const vaultThemeVars: CSSProperties = {
+    "--background": "220 18% 95%",
+    "--foreground": "222 22% 9%",
     "--card": "0 0% 100%",
-    "--card-foreground": "0 0% 8%",
+    "--card-foreground": "222 22% 9%",
     "--popover": "0 0% 100%",
-    "--popover-foreground": "0 0% 8%",
-    "--primary": "0 0% 8%",
+    "--popover-foreground": "222 22% 9%",
+    "--primary": "0 84% 60%",
     "--primary-foreground": "0 0% 100%",
-    "--secondary": "0 0% 96%",
-    "--secondary-foreground": "0 0% 12%",
-    "--muted": "0 0% 97%",
-    "--muted-foreground": "0 0% 38%",
-    "--accent": "0 0% 8%",
+    "--secondary": "142 71% 45%",
+    "--secondary-foreground": "0 0% 100%",
+    "--muted": "220 14% 92%",
+    "--muted-foreground": "220 11% 36%",
+    "--accent": "217 91% 60%",
     "--accent-foreground": "0 0% 100%",
-    "--destructive": "0 0% 15%",
+    "--destructive": "24 95% 55%",
     "--destructive-foreground": "0 0% 100%",
-    "--border": "0 0% 85%",
-    "--input": "0 0% 85%",
-    "--ring": "0 0% 25%",
-    "--timer-ready": "131 64% 38%",
-    "--timer-running": "0 76% 52%",
-    "--timer-idle": "0 0% 10%",
-    "--sidebar-background": "0 0% 100%",
-    "--sidebar-foreground": "0 0% 8%",
-    "--sidebar-primary": "0 0% 8%",
+    "--border": "222 15% 20%",
+    "--input": "222 15% 20%",
+    "--ring": "48 98% 55%",
+    "--timer-ready": "142 71% 45%",
+    "--timer-running": "0 84% 60%",
+    "--timer-idle": "222 22% 9%",
+    "--sidebar-background": "220 24% 97%",
+    "--sidebar-foreground": "222 22% 9%",
+    "--sidebar-primary": "0 84% 60%",
     "--sidebar-primary-foreground": "0 0% 100%",
-    "--sidebar-accent": "0 0% 96%",
-    "--sidebar-accent-foreground": "0 0% 8%",
-    "--sidebar-border": "0 0% 85%",
-    "--sidebar-ring": "0 0% 25%",
+    "--sidebar-accent": "217 91% 60%",
+    "--sidebar-accent-foreground": "0 0% 100%",
+    "--sidebar-border": "222 14% 24%",
+    "--sidebar-ring": "48 98% 55%",
+    "--font-serif-color": "#141922",
   } as CSSProperties;
 
   useEffect(() => {
@@ -229,84 +237,91 @@ const Index = () => {
 
   return (
     <div
-      style={minimalThemeVars}
-      className="min-h-screen bg-[hsl(var(--background))] text-[hsl(var(--foreground))] flex flex-col md:flex-row"
+      style={vaultThemeVars}
+      className="relative min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#f7f8fa_0%,#eceff3_100%)] text-[hsl(var(--foreground))] flex flex-col md:flex-row"
     >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-[linear-gradient(90deg,#ef4444_0%,#22c55e_20%,#3b82f6_40%,#f8fafc_60%,#facc15_80%,#f97316_100%)]"
+      />
       {/* Main timer area */}
-      <div className="flex-1 flex flex-col px-4 py-6 gap-5">
-        <header className="rounded-xl border border-border bg-card px-5 py-4">
+      <div className="relative z-10 flex-1 flex flex-col px-4 py-6 md:px-6 gap-5">
+        <header className="rounded-[1.5rem] border-2 border-foreground/85 bg-card px-6 py-5 shadow-[0_10px_0_rgba(0,0,0,0.12)]">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
+              <h1 className="text-3xl md:text-4xl font-semibold tracking-[0.12em] text-foreground">
                 CubeVault
               </h1>
-              <p className="mt-1 text-sm text-muted-foreground max-w-xl">
-                Train speed, review optimal solutions, and track progress with a
-                focused 3x3 timer workflow.
+              <p className="mt-2 text-base text-muted-foreground max-w-2xl">
+                Rubik-style timer board with clear cube-color visual language.
               </p>
+              <div className="mt-3 flex items-center gap-2">
+                {cubePalette.map((color, index) => (
+                  <span
+                    key={`${color}-${index}`}
+                    className="h-6 w-6 rounded-md border-2 border-black/60 shadow-[inset_0_-2px_0_rgba(0,0,0,0.28)]"
+                    style={{ backgroundColor: color }}
+                    aria-hidden
+                  />
+                ))}
+              </div>
             </div>
-            <Link to="/contribute">
+            <a href="https://github.com/nmncodes/CubeVault" target="_blank" rel="noopener noreferrer">
               <Button
                 variant="outline"
-                className="gap-2 border-black text-black hover:bg-black hover:text-white"
+                className="gap-2 border-black bg-card text-foreground hover:bg-black hover:text-white"
               >
                 <Github size={14} />
-                Contribute
+                Repository
               </Button>
-            </Link>
+            </a>
           </div>
         </header>
 
-        <ScrambleDisplay
-          scramble={scramble}
-          solutionState={solutionState}
-          solution={currentSolution}
-          errorMessage={solutionError}
-        />
-        <Timer onSolve={handleSolve} />
-        {solves[0]?.recommendedSolution && (
-          <div className="mt-3 flex justify-center">
-            <button
-              onClick={() => handleOpenReplay(solves[0])}
-              className="inline-flex items-center gap-2 rounded-md border border-black bg-white px-4 py-2 text-sm text-black hover:bg-black hover:text-white transition-colors"
-            >
-              <Eye size={20} />
-              See optimal solution?
-            </button>
+        <section className="relative overflow-hidden rounded-[1.6rem] border-2 border-foreground/85 bg-card/95 px-4 py-5 md:px-6 md:py-6 shadow-[0_10px_0_rgba(0,0,0,0.1)]">
+          <div className="relative space-y-4">
+            <ScrambleDisplay
+              scramble={scramble}
+              solutionState={solutionState}
+              solution={currentSolution}
+              errorMessage={solutionError}
+            />
+            <Timer onSolve={handleSolve} hotkeysEnabled={!replayOpen} />
+            {solves[0]?.recommendedSolution && (
+              <div className="mt-2 flex justify-center">
+                <button
+                  onClick={() => handleOpenReplay(solves[0])}
+                  className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-card px-5 py-2 text-sm text-foreground hover:bg-black hover:text-white transition-colors"
+                >
+                  <Eye size={16} />
+                  Replay Optimal Path
+                </button>
+              </div>
+            )}
           </div>
-        )}
+        </section>
 
-        <SessionDashboard
-          solves={solves}
-          onDelete={handleDelete}
-          onPenalty={handlePenalty}
-        />
+        <SessionDashboard solves={solves} mode="stats" />
+
+        <SessionDashboard solves={solves} mode="graph" />
+
 
         <section className="grid gap-3 xl:grid-cols-2">
-          <Card className="border-border bg-card">
-            <Collapsible open={aboutOpen} onOpenChange={setAboutOpen}>
+          <Card className="border-2 border-black bg-card shadow-[0_8px_0_rgba(0,0,0,0.08)]">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between gap-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <UserRound size={16} />
-                    CubeVault / About Me
+                    About CubeVault 
                   </CardTitle>
-                  <CollapsibleTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 gap-2 px-2 text-muted-foreground hover:text-foreground"
+                      className="h-8 gap-2 px-2 text-muted-foreground hover:bg-black/10 hover:text-foreground"
                     >
-                      {aboutOpen ? "Hide" : "Show"}
-                      <ChevronDown
-                        size={14}
-                        className={`transition-transform duration-200 ${aboutOpen ? "rotate-180" : ""}`}
-                      />
                     </Button>
-                  </CollapsibleTrigger>
                 </div>
               </CardHeader>
-              <CollapsibleContent className="data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up overflow-hidden">
                 <CardContent className="space-y-2 text-sm text-muted-foreground">
                   <p>
                     CubeVault is your speedcubing lab. The focus is low-latency
@@ -318,11 +333,9 @@ const Index = () => {
                     <code className="font-mono-timer">src/pages/Index.tsx</code>.
                   </p>
                 </CardContent>
-              </CollapsibleContent>
-            </Collapsible>
           </Card>
 
-          <Card className="border-border bg-card">
+          <Card className="border-2 border-black bg-card shadow-[0_8px_0_rgba(0,0,0,0.08)]">
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <Info size={16} />
@@ -335,32 +348,37 @@ const Index = () => {
                 and profile features.
               </p>
               <div className="flex flex-wrap gap-2">
-                <Link to="/contribute">
+                <a href="https://github.com/nmncodes/CubeVault" target="_blank" rel="noopener noreferrer">
                   <Button
                     size="sm"
-                    className="gap-2 bg-black text-white hover:bg-neutral-800"
+                    className="gap-2 border border-black bg-card text-foreground hover:bg-black hover:text-white"
                   >
                     <Github size={14} />
                     Open Contribute Page
                   </Button>
-                </Link>
+                </a>
               </div>
             </CardContent>
           </Card>
         </section>
+
       </div>
 
       {/* Sidebar with solves */}
-      <aside className="w-full md:w-72 lg:w-80 border-t md:border-t-0 md:border-l border-border bg-card flex flex-col max-h-[40vh] md:max-h-screen md:h-screen">
-        <div className="px-3 py-2 border-b border-border flex items-center justify-between">
-          <span className="text-sm font-medium text-muted-foreground">
-            Solves ({solves.length})
+      <aside className="relative z-10 w-full md:w-80 lg:w-[22rem] border-t md:border-t-0 md:border-l-2 border-foreground/80 bg-sidebar flex flex-col max-h-[42vh] md:max-h-none md:self-stretch">
+        <div className="relative px-4 py-3 border-b border-foreground/25 flex items-center justify-between bg-sidebar">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-2 top-0 h-0.5 rounded-full bg-[linear-gradient(90deg,#ef4444_0%,#22c55e_20%,#3b82f6_40%,#f8fafc_60%,#facc15_80%,#f97316_100%)]"
+          />
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-[0.2em]">
+            Session Log ({solves.length})
           </span>
           <div className="flex items-center gap-2">
             {solves.length > 0 && (
               <button
                 onClick={handleExport}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors uppercase tracking-[0.12em]"
                 title="Export solves as JSON"
               >
                 <Download size={12} />
@@ -370,7 +388,7 @@ const Index = () => {
             {solves.length > 0 && (
               <button
                 onClick={() => setSolves([])}
-                className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                className="text-xs text-destructive hover:text-destructive/80 transition-colors uppercase tracking-[0.12em]"
               >
                 Clear all
               </button>

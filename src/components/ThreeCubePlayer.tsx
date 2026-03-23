@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { cn } from "@/lib/utils";
-import { parseAlgorithm } from "@/lib/cube-visualizer";
+import { inverseMove, parseAlgorithm } from "@/lib/cube-visualizer";
 
 interface ThreeCubePlayerProps {
   scramble: string;
@@ -47,8 +47,8 @@ const FACE_COLORS = {
   D: 0xf8fafc,
   F: 0xef4444,
   B: 0xf97316,
-  R: 0x3b82f6,
-  L: 0x22c55e,
+  R: 0x22c55e,
+  L: 0x3b82f6,
   internal: 0x111827,
 };
 
@@ -131,13 +131,6 @@ function parseMoveToken(token: string): {
     angle,
     turns,
   };
-}
-
-function inverseMove(token: string) {
-  const trimmed = token.trim();
-  if (!trimmed) return trimmed;
-  if (trimmed.includes("2")) return trimmed;
-  return trimmed.includes("'") ? trimmed.replace("'", "") : `${trimmed}'`;
 }
 
 const ThreeCubePlayer = ({
@@ -303,6 +296,25 @@ const ThreeCubePlayer = ({
       const current = currentStepRef.current;
 
       if (current === target) return;
+
+      // Jump directly for large seeks (slider/card click) so playback doesn't drift.
+      if (Math.abs(target - current) > 1) {
+        if (current < target) {
+          for (let i = current; i < target; i++) {
+            const nextMove = solutionMoves[i];
+            if (!nextMove) break;
+            rotateCubies(nextMove, false);
+          }
+        } else {
+          for (let i = current - 1; i >= target; i--) {
+            const prevMove = solutionMoves[i];
+            if (!prevMove) break;
+            rotateCubies(inverseMove(prevMove), false);
+          }
+        }
+        currentStepRef.current = target;
+        return;
+      }
 
       if (current < target) {
         const nextMove = solutionMoves[current];

@@ -13,24 +13,42 @@ const ScrambleDisplay = ({
   solution,
   errorMessage,
 }: ScrambleDisplayProps) => {
+  const scrambleMoves = scramble.trim().split(/\s+/).filter(Boolean);
+  const cubeStickers: Array<{ bg: string; fg: string }> = [
+    { bg: "#ef4444", fg: "#f8fafc" },
+    { bg: "#3b82f6", fg: "#f8fafc" },
+    { bg: "#22c55e", fg: "#f8fafc" },
+    { bg: "#f8fafc", fg: "#111827" },
+    { bg: "#facc15", fg: "#111827" },
+    { bg: "#f97316", fg: "#111827" },
+  ];
+
+  const statusText ="Ready"
+
+  const statusClass =
+    solutionState === "loading"
+      ? "border-accent/50 text-accent"
+      : solutionState === "ready"
+        ? "border-primary/50 text-primary"
+        : "border-destructive/50 text-destructive";
+
   return (
-    <div className="px-4 py-4 text-center rounded-lg border border-border bg-card">
-      <p className="font-mono-timer text-xl sm:text-2xl md:text-3xl lg:text-4xl tracking-wide text-foreground select-none leading-relaxed">
-        {scramble}
+    <div className="rounded-2xl border-2 border-foreground/80 bg-card px-4 py-4 text-center shadow-[0_6px_0_rgba(0,0,0,0.08)]">
+      <p className="text-[21px] uppercase tracking-[0.18em] text-muted-foreground">
+        Scramble
       </p>
-      {/* <div className="mt-3 text-sm text-muted-foreground">
-        {solutionState === "loading" && (
-          <span>Preparing optimal solution..</span>
-        )}
-        {solutionState === "ready" && solution && (
-          <span title={`${solution.method} solution ready`}>
-            Optimal Solution will be available once you finish your solve.
-          </span>
-        )}
-        {solutionState === "error" && (
-          <span title={errorMessage}>Solver unavailable for this scramble.</span>
-        )}
-      </div> */}
+      <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+        {scrambleMoves.map((move, index) => {
+          return (
+            <span
+              key={`${move}-${index}`}
+              className="inline-flex min-w-[2.9rem] justify-center rounded-md border-2 border-black/70 px-2.5 py-1 font-mono-timer text-lg tracking-[0.03em] shadow-[inset_0_-2px_0_rgba(0,0,0,0.22)]"
+            >
+              {move}
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 };

@@ -14,9 +14,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import CubeNet2D from "@/components/CubeNet2D";
 import MiniCube from "@/components/MiniCube";
 import ThreeCubePlayer from "@/components/ThreeCubePlayer";
-import { parseAlgorithm } from "@/lib/cube-visualizer";
+import { invertAlgorithm, parseAlgorithm } from "@/lib/cube-visualizer";
 import { formatTime, Solve } from "@/lib/scramble";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +29,44 @@ interface SolutionReplayDialogProps {
 
 const PLAYBACK_INTERVAL_MS = 800;
 
+interface MoveStripProps {
+  title: string;
+  moves: string[];
+  activeIndex?: number;
+}
+
+const MoveStrip = ({ title, moves, activeIndex }: MoveStripProps) => {
+  return (
+    <div className="rounded-lg border border-border/60 bg-background/30 p-2">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          {title}
+        </span>
+        <span className="font-mono-timer text-[11px] text-muted-foreground">
+          {moves.length} moves
+        </span>
+      </div>
+      {moves.length === 0 ? (
+        <div className="text-xs text-muted-foreground">No moves</div>
+      ) : (
+        <div className="flex flex-wrap gap-1.5 text-xs font-mono-timer">
+          {moves.map((move, index) => (
+            <span
+              key={`${title}-${move}-${index}`}
+              className={cn(
+                "rounded-md border border-border/60 bg-card/70 px-1.5 py-0.5 text-muted-foreground",
+                index === activeIndex && "border-primary/70 bg-primary/20 text-primary"
+              )}
+            >
+              {move}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SolutionReplayDialog = ({
   open,
   solve,
@@ -37,6 +76,14 @@ const SolutionReplayDialog = ({
   const moves = useMemo(
     () => parseAlgorithm(solution?.algorithm ?? ""),
     [solution?.algorithm]
+  );
+  const scrambleMoves = useMemo(
+    () => parseAlgorithm(solve?.scramble ?? ""),
+    [solve?.scramble]
+  );
+  const returnToPreviousStateMoves = useMemo(
+    () => invertAlgorithm(moves),
+    [moves]
   );
   const states = useMemo(() => {
     if (!solution?.states?.length) return [];
@@ -79,7 +126,7 @@ const SolutionReplayDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-[1200px] p-4 sm:p-6">
+      <DialogContent className="w-[1260px] max-h-[94vh] max-w-[96vw] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="font-mono-timer">
             Optimal Replay
@@ -112,7 +159,7 @@ const SolutionReplayDialog = ({
             />
 
             <div className="rounded-xl border border-border bg-secondary/30 p-4">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1">
                 <button
                   onClick={() => setStep(0)}
                   className="rounded-md border border-border bg-card px-2 py-1 text-xs hover:bg-accent/20"
@@ -145,36 +192,37 @@ const SolutionReplayDialog = ({
                 >
                   <ChevronRight size={14} />
                 </button>
-                <input
-                  type="range"
-                  min={0}
-                  max={maxStep}
-                  value={step}
-                  onChange={(event) => setStep(Number(event.target.value))}
-                  className="ml-2 h-2 w-40 accent-primary"
-                />
-                <span className="font-mono-timer text-sm text-muted-foreground">
+                <div className="ml-1 min-w-[220px] flex-1">
+                  <input
+                    type="range"
+                    min={0}
+                    max={maxStep}
+                    value={step}
+                    onChange={(event) => setStep(Number(event.target.value))}
+                    className="h-2 w-full accent-primary"
+                  />
+                </div>
+                <span className="shrink-0 font-mono-timer text-sm text-muted-foreground">
                   Step {step}/{maxStep} | {currentMove}
                 </span>
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-2 text-sm font-mono-timer">
-                {moves.map((move, index) => (
-                  <span
-                    key={`${move}-${index}`}
-                    className={cn(
-                      "rounded px-1.5 py-0.5 text-muted-foreground",
-                      index === step - 1 && "bg-primary/20 text-primary"
-                    )}
-                  >
-                    {move}
-                  </span>
-                ))}
+              <div className="mt-3 grid gap-2 lg:grid-cols-3">
+                <MoveStrip
+                  title="Optimal Solve"
+                  moves={moves}
+                  activeIndex={step === 0 ? undefined : step - 1}
+                />
+                <MoveStrip title="Original Scramble" moves={scrambleMoves} />
+                <MoveStrip
+                  title="Back To Previous State"
+                  moves={returnToPreviousStateMoves}
+                />
               </div>
             </div>
 
-            <div className="max-h-[58vh] overflow-y-auto rounded-lg border border-border bg-card/20 p-3">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+            <div className="max-h-[54vh] overflow-y-auto rounded-lg border border-border bg-card/20 p-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {states.map((state, index) => {
                   const move = index === 0 ? "Start" : moves[index - 1];
                   const isDouble = move.includes("2");
@@ -184,7 +232,7 @@ const SolutionReplayDialog = ({
                       key={`step-${index}`}
                       onClick={() => setStep(index)}
                       className={cn(
-                        "rounded-xl border bg-card/60 p-3 text-left transition-colors",
+                        "flex min-h-[248px] flex-col rounded-xl border bg-card/60 p-3 text-left transition-colors",
                         step === index
                           ? "border-primary shadow-[0_0_0_1px_hsl(var(--primary))]"
                           : "border-border hover:bg-secondary/40"
@@ -200,7 +248,24 @@ const SolutionReplayDialog = ({
                           </span>
                         )}
                       </div>
-                      <MiniCube state={state} className="mx-auto" />
+                      <div className="mt-1 grid flex-1 gap-2">
+                        <div className="rounded-lg border border-border/50 bg-background/30 p-2">
+                          <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                            2D net
+                          </div>
+                          <div className="flex items-center justify-center">
+                            <CubeNet2D state={state} compact />
+                          </div>
+                        </div>
+                        <div className="rounded-lg border border-border/50 bg-background/30 p-2">
+                          <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                            3D view
+                          </div>
+                          <div className="flex items-center justify-center">
+                            <MiniCube state={state} size="sm" className="mx-auto" />
+                          </div>
+                        </div>
+                      </div>
                     </button>
                   );
                 })}

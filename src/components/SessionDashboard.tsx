@@ -1,4 +1,3 @@
-import { useCallback, useState } from "react";
 import { Solve, formatTime, getAo, getEffectiveTime } from "@/lib/scramble";
 import {
   getAverageTime,
@@ -12,8 +11,7 @@ import {
 
 interface SessionDashboardProps {
   solves: Solve[];
-  onDelete: (id: string) => void;
-  onPenalty: (id: string, penalty: "+2" | "DNF" | undefined) => void;
+  mode?: "stats" | "graph" | "both";
 }
 
 const formatMaybeTime = (value: number | null) =>
@@ -31,7 +29,7 @@ const SolveScatterGraph = ({ solves }: { solves: Solve[] }) => {
 
   if (points.length === 0) {
     return (
-      <div className="h-[210px] flex items-center justify-center text-sm text-muted-foreground">
+      <div className="h-[210px] flex items-center justify-center text-sm uppercase tracking-[0.15em] text-muted-foreground">
         Add solves to render graph
       </div>
     );
@@ -80,7 +78,7 @@ const SolveScatterGraph = ({ solves }: { solves: Solve[] }) => {
             y2={y}
             stroke="hsl(var(--border))"
             strokeWidth={1}
-            opacity={0.7}
+            opacity={0.45}
           />
         );
       })}
@@ -96,7 +94,7 @@ const SolveScatterGraph = ({ solves }: { solves: Solve[] }) => {
             y2={height - padding.bottom}
             stroke="hsl(var(--border))"
             strokeWidth={1}
-            opacity={0.7}
+            opacity={0.45}
           />
         );
       })}
@@ -107,8 +105,8 @@ const SolveScatterGraph = ({ solves }: { solves: Solve[] }) => {
         x2={width - padding.right}
         y2={height - padding.bottom}
         stroke="hsl(var(--foreground))"
-        strokeWidth={1.2}
-        opacity={0.8}
+        strokeWidth={1.3}
+        opacity={0.9}
       />
       <line
         x1={padding.left}
@@ -116,8 +114,8 @@ const SolveScatterGraph = ({ solves }: { solves: Solve[] }) => {
         x2={padding.left}
         y2={height - padding.bottom}
         stroke="hsl(var(--foreground))"
-        strokeWidth={1.2}
-        opacity={0.8}
+        strokeWidth={1.3}
+        opacity={0.9}
       />
       <text
         x={xAxisCenter}
@@ -125,6 +123,7 @@ const SolveScatterGraph = ({ solves }: { solves: Solve[] }) => {
         textAnchor="middle"
         fill="hsl(var(--muted-foreground))"
         fontSize={11}
+        letterSpacing="2"
       >
         Solves
       </text>
@@ -135,6 +134,7 @@ const SolveScatterGraph = ({ solves }: { solves: Solve[] }) => {
         textAnchor="middle"
         fill="hsl(var(--muted-foreground))"
         fontSize={11}
+        letterSpacing="2"
       >
         Time
       </text>
@@ -142,11 +142,11 @@ const SolveScatterGraph = ({ solves }: { solves: Solve[] }) => {
       <polyline
         points={trendPath}
         fill="none"
-        stroke="hsl(var(--foreground))"
+        stroke="#111111"
         strokeWidth={1.8}
         strokeLinecap="round"
         strokeLinejoin="round"
-        opacity={0.9}
+        opacity={0.95}
       />
 
       {plottedPoints.map((point, index) => (
@@ -155,21 +155,14 @@ const SolveScatterGraph = ({ solves }: { solves: Solve[] }) => {
           cx={point.px}
           cy={point.py}
           r={4}
-          fill="hsl(var(--primary))"
+          fill="#111111"
         />
       ))}
     </svg>
   );
 };
 
-const SessionDashboard = ({
-  solves,
-  onDelete,
-  onPenalty,
-}: SessionDashboardProps) => {
-  const [deletingIds, setDeletingIds] = useState<string[]>([]);
-  const displayedSolves = solves.slice(0, 12);
-
+const StatisticsPanel = ({ solves }: { solves: Solve[] }) => {
   const best = getBestTime(solves);
   const worst = getWorstTime(solves);
   const average = getAverageTime(solves);
@@ -184,153 +177,71 @@ const SessionDashboard = ({
   const tenOfTwelve = getRecentBestN(solves, 12, 10);
   const bestTenOfTwelve = getBestWindowBestN(solves, 12, 10);
 
-  const handleDeleteWithTransition = useCallback(
-    (id: string) => {
-      let shouldScheduleDelete = false;
-      setDeletingIds((prev) => {
-        if (prev.includes(id)) return prev;
-        shouldScheduleDelete = true;
-        return [...prev, id];
-      });
-
-      if (!shouldScheduleDelete) return;
-
-      window.setTimeout(() => {
-        onDelete(id);
-        setDeletingIds((prev) => prev.filter((value) => value !== id));
-      }, 220);
-    },
-    [onDelete]
-  );
+  const statItems: Array<{ label: string; value: string }> = [
+    { label: "Best", value: formatMaybeTime(best) },
+    { label: "Worst", value: formatMaybeTime(worst) },
+    { label: "Average", value: formatMaybeTime(average) },
+    { label: "Median", value: formatMaybeTime(median) },
+    { label: "Avg 5", value: formatMaybeAo(avg5) },
+    { label: "Avg 12", value: formatMaybeAo(avg12) },
+  ];
 
   return (
-    <section className="grid gap-3 lg:grid-cols-[1.28fr_1.1fr_1fr]">
-      <div className="relative rounded-md border border-border/80 bg-card/65 p-3 pt-4">
-        <span className="absolute -top-3 left-4 rounded-md border border-border bg-background px-3 py-0.5 text-[13px] font-semibold text-primary">
-          Times
-        </span>
-        <div className="max-h-[250px] overflow-y-auto space-y-1">
-          {displayedSolves.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No times yet
+    <div className="relative w-full rounded-2xl border-2 border-black bg-card p-4 pt-5">
+      <span className="absolute -top-3 left-4 rounded-full border border-black bg-background px-3 py-0.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-foreground">
+        Statistics
+      </span>
+      <div className="grid grid-cols-2 gap-2 text-[13px] sm:grid-cols-3">
+        {statItems.map((item, index) => {
+          return (
+          <div
+            key={item.label}
+            className="rounded-lg border px-3 py-2"
+            style={{
+              borderColor: "#0f172a",
+              backgroundColor: "hsl(var(--background) / 0.38)",
+            }}
+          >
+            <p className="text-[11px] uppercase tracking-[0.12em]">
+              {item.label}
             </p>
-          ) : (
-            displayedSolves.map((solve, index) => {
-              const effective = getEffectiveTime(solve);
-              const isDeleting = deletingIds.includes(solve.id);
-              const label =
-                solve.penalty === "DNF"
-                  ? "DNF"
-                  : solve.penalty === "+2"
-                    ? `${formatTime(effective)}+`
-                    : formatTime(solve.time);
-
-              return (
-                <div
-                  key={solve.id}
-                  className={`grid grid-cols-[2.1rem_1fr_auto] items-center rounded-sm px-2 py-1.5 text-sm transition-colors duration-200 ${
-                    isDeleting ? "bg-destructive/20" : "bg-secondary/25"
-                  }`}
-                >
-                  <span className="font-mono-timer text-muted-foreground">
-                    {solves.length - index}.
-                  </span>
-                  <span className="font-mono-timer font-semibold">{label}</span>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <button
-                      onClick={() =>
-                        onPenalty(solve.id, solve.penalty === "+2" ? undefined : "+2")
-                      }
-                      className="hover:text-foreground transition-colors"
-                    >
-                      +2
-                    </button>
-                    <button
-                      onClick={() =>
-                        onPenalty(solve.id, solve.penalty === "DNF" ? undefined : "DNF")
-                      }
-                      className="hover:text-foreground transition-colors"
-                    >
-                      DNF
-                    </button>
-                    <button
-                      onClick={() => handleDeleteWithTransition(solve.id)}
-                      className="hover:text-destructive transition-colors"
-                    >
-                      X
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+            <p className="mt-0.5 font-mono-timer text-base text-foreground">
+              {item.value}
+            </p>
+          </div>
+          );
+        })}
       </div>
+    </div>
+  );
+};
 
-      <div className="relative rounded-md border border-border/80 bg-card/65 p-3 pt-4">
-        <span className="absolute -top-3 left-4 rounded-md border border-border bg-background px-3 py-0.5 text-[13px] font-semibold text-primary">
-          Statistics
-        </span>
-        <div className="space-y-1 text-[14px]">
-          <div className="flex justify-between">
-            <span>Best:</span>
-            <span className="font-mono-timer">{formatMaybeTime(best)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Worst:</span>
-            <span className="font-mono-timer">{formatMaybeTime(worst)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Average:</span>
-            <span className="font-mono-timer">{formatMaybeTime(average)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Median:</span>
-            <span className="font-mono-timer">{formatMaybeTime(median)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>S Deviation:</span>
-            <span className="font-mono-timer">{formatMaybeTime(stdDeviation)}</span>
-          </div>
-          <hr className="my-2 border-border/80" />
-          <div className="flex justify-between">
-            <span>Avg 5:</span>
-            <span className="font-mono-timer">{formatMaybeAo(avg5)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>3 of 5:</span>
-            <span className="font-mono-timer">{formatMaybeTime(threeOfFive)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Best 3 of 5:</span>
-            <span className="font-mono-timer">
-              {formatMaybeTime(bestThreeOfFive)}
-            </span>
-          </div>
-          <hr className="my-2 border-border/80" />
-          <div className="flex justify-between">
-            <span>Avg 12:</span>
-            <span className="font-mono-timer">{formatMaybeAo(avg12)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>10 of 12:</span>
-            <span className="font-mono-timer">{formatMaybeTime(tenOfTwelve)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Best 10 of 12:</span>
-            <span className="font-mono-timer">
-              {formatMaybeTime(bestTenOfTwelve)}
-            </span>
-          </div>
-        </div>
-      </div>
+const GraphPanel = ({ solves }: { solves: Solve[] }) => (
+  <div className="relative rounded-2xl border-2 border-black bg-card p-4 pt-5">
+    <span className="absolute -top-3 left-4 rounded-full border border-black bg-background px-3 py-0.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-foreground">
+      Graph
+    </span>
+    <SolveScatterGraph solves={solves} />
+  </div>
+);
 
-      <div className="relative rounded-md border border-border/80 bg-card/65 p-3 pt-4">
-        <span className="absolute -top-3 left-4 rounded-md border border-border bg-background px-3 py-0.5 text-[13px] font-semibold text-primary">
-          Graph
-        </span>
-        <SolveScatterGraph solves={solves} />
-      </div>
+const SessionDashboard = ({ solves, mode = "both" }: SessionDashboardProps) => {
+  if (mode === "stats") {
+    return (
+      <section className="flex justify-start">
+        <StatisticsPanel solves={solves} />
+      </section>
+    );
+  }
+
+  if (mode === "graph") {
+    return <GraphPanel solves={solves} />;
+  }
+
+  return (
+    <section className="grid gap-4 lg:grid-cols-[1.15fr_1fr]">
+      <StatisticsPanel solves={solves} />
+      <GraphPanel solves={solves} />
     </section>
   );
 };
