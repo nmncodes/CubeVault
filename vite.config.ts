@@ -5,9 +5,7 @@ import os from "node:os";
 import { spawn } from "node:child_process";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
-import { createAuthMiddleware } from "./server/auth.ts";
 import { readJsonBody, writeJson } from "./server/http.ts";
-import { createSolveStorageMiddleware } from "./server/solves.ts";
 
 const API_PATH = "/api/solve";
 const SOLVER_SCRIPT_PATH = path.resolve(__dirname, "solver", "solve_scramble.py");
@@ -185,21 +183,65 @@ async function solveScramble(scramble: string, method: string) {
 }
 
 function rubikSolverApi(): Plugin {
-  const authMiddleware = createAuthMiddleware();
-  const solveStorageMiddleware = createSolveStorageMiddleware();
+  let authMiddleware:
+    | ((
+        req: IncomingMessage,
+        res: ServerResponse,
+        next: (err?: unknown) => void
+      ) => void | Promise<void>)
+    | null = null;
+  let solveStorageMiddleware:
+    | ((
+        req: IncomingMessage,
+        res: ServerResponse,
+        next: (err?: unknown) => void
+      ) => void | Promise<void>)
+    | null = null;
+  let middlewareSetupPromise: Promise<void> | null = null;
+
+  async function ensureServerMiddleware() {
+    if (authMiddleware && solveStorageMiddleware) return;
+
+    if (!middlewareSetupPromise) {
+      middlewareSetupPromise = Promise.all([
+        import("./server/auth"),
+        import("./server/solves"),
+      ]).then(([authModule, solvesModule]) => {
+        authMiddleware = authModule.createAuthMiddleware();
+        solveStorageMiddleware = solvesModule.createSolveStorageMiddleware();
+      });
+    }
+
+    await middlewareSetupPromise;
+  }
 
   const middleware = async (
     req: IncomingMessage,
     res: ServerResponse,
     next: (err?: unknown) => void
   ) => {
-    authMiddleware(req, res, async (authError) => {
+    try {
+      await ensureServerMiddleware();
+    } catch (error) {
+      next(error);
+      return;
+    }
+
+    if (!authMiddleware || !solveStorageMiddleware) {
+      next(new Error("Middleware setup failed."));
+      return;
+    }
+
+    const activeAuthMiddleware = authMiddleware;
+    const activeSolveStorageMiddleware = solveStorageMiddleware;
+
+    activeAuthMiddleware(req, res, async (authError) => {
       if (authError) {
         next(authError);
         return;
       }
 
-      solveStorageMiddleware(req, res, async (storageError) => {
+      activeSolveStorageMiddleware(req, res, async (storageError) => {
         if (storageError) {
           next(storageError);
           return;
