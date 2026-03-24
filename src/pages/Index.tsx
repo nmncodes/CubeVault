@@ -253,30 +253,32 @@ const Index = () => {
                 <h1 className="text-3xl md:text-4xl font-semibold tracking-[0.12em] text-foreground">
                   CubeVault
                 </h1>
-                {isAuthConfigured && (
-                  <button
-                    type="button"
-                    onClick={() => void handleAccountClick()}
-                    disabled={accountPending || authLoading}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs uppercase tracking-[0.16em] transition-colors ${
-                      isLoggedIn
-                        ? "border-foreground/70 bg-card text-foreground hover:bg-black hover:text-white"
-                        : "border-foreground/30 bg-card/50 text-muted-foreground hover:border-foreground/60 hover:text-foreground"
-                    }`}
-                    title={
-                      isLoggedIn
-                        ? `Signed in as ${user?.email ?? "account"}. Click to sign out.`
-                        : "Sign in"
-                    }
-                    >
-                    {accountPending ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      <CircleUserRound size={14} />
-                    )}
-                    {isLoggedIn && <span>ACC - logged in</span>}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => void handleAccountClick()}
+                  disabled={accountPending || authLoading}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs uppercase tracking-[0.16em] transition-colors ${
+                    isLoggedIn
+                      ? "border-foreground/70 bg-card text-foreground hover:bg-black hover:text-white"
+                      : isAuthConfigured
+                        ? "border-foreground/30 bg-card/50 text-muted-foreground hover:border-foreground/60 hover:text-foreground"
+                        : "border-foreground/20 bg-card/40 text-muted-foreground"
+                  }`}
+                  title={
+                    isLoggedIn
+                      ? `Signed in as ${user?.email ?? "account"}. Click to sign out.`
+                      : isAuthConfigured
+                        ? "Sign in"
+                        : "Auth not configured"
+                  }
+                >
+                  {accountPending ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <CircleUserRound size={14} />
+                  )}
+                  {isLoggedIn && <span>ACC - logged in</span>}
+                </button>
               </div>
               <p className="mt-2 text-base text-muted-foreground max-w-2xl">
                 Rubik-style timer board with clear cube-color visual language.
