@@ -63,6 +63,30 @@ Server runs on:
 - `corepack pnpm prisma:generate`
 - `corepack pnpm prisma:push`
 
+## Deploy on Vercel
+
+1. Push this repo to GitHub.
+2. Import the repo in Vercel.
+3. Add project env vars:
+   - `AUTH_SECRET`
+   - `AUTH_GOOGLE_ID`
+   - `AUTH_GOOGLE_SECRET`
+   - `DATABASE_URL`
+   - optional GitHub OAuth vars
+4. Deploy.
+
+Notes:
+
+- Vercel serverless APIs are in `api/`:
+  `api/auth/[...auth].ts`, `api/auth-meta.ts`, `api/solves.ts`,
+  `api/solves/sync.ts`, `api/solve.ts`.
+- SPA fallback is configured in `vercel.json`.
+- `api/solve.ts` requires Python + `rubik-solver`. On Vercel Node functions this
+  may be unavailable unless you provide a compatible runtime/service.
+- Update OAuth callbacks to your production domain:
+  - `https://YOUR_DOMAIN/api/auth/callback/google`
+  - `https://YOUR_DOMAIN/api/auth/callback/github`
+
 ## API routes
 
 - `GET /api/auth-meta`
@@ -84,4 +108,3 @@ Server runs on:
   run `corepack pnpm prisma:push` and/or apply `neon/cubevault.sql`.
 - `/api/auth-meta` shows `authConfigured: false`
   missing `AUTH_SECRET` or no valid OAuth provider envs.
-
