@@ -45,6 +45,7 @@ export interface Solve {
   time: number;
   scramble: string;
   date: Date;
+  updatedAt?: string;
   penalty?: "+2" | "DNF";
   recommendedSolution?: RecommendedSolution;
 }

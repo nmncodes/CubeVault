@@ -34,6 +34,10 @@ dist-ssr
 .env.*
 !.env.example
 
+# Local Prisma DB artifacts (for optional SQLite/local testing)
+prisma/*.db
+prisma/*.db-journal
+
 # Test & Coverage
 coverage
 .coverage/

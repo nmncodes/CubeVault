@@ -1,6 +1,16 @@
 import { useState, useCallback, useEffect, CSSProperties } from "react";
-import { ChevronDown, Download, Eye, Github, Info, UserRound } from "lucide-react";
-import { Link } from "react-router-dom";
+import {
+  CircleUserRound,
+  Cloud,
+  CloudOff,
+  Download,
+  Eye,
+  Github,
+  Info,
+  Loader2,
+  RefreshCcw,
+  UserRound,
+} from "lucide-react";
 import {
   generateScramble,
   Solve,
@@ -13,97 +23,61 @@ import Timer from "@/components/Timer";
 import SolveList from "@/components/SolveList";
 import SolutionReplayDialog from "@/components/SolutionReplayDialog";
 import SessionDashboard from "@/components/SessionDashboard";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-
-const STORAGE_KEY = "cubevault.solves.v1";
+import { useSolveStore } from "@/hooks/use-solves";
+import { useAuth } from "@/hooks/use-auth";
 type SolutionState = "loading" | "ready" | "error";
 
-function parseStoredSolution(value: unknown): RecommendedSolution | undefined {
-  if (typeof value !== "object" || value === null) return undefined;
-
-  const candidate = value as Record<string, unknown>;
-  if (
-    typeof candidate.method !== "string" ||
-    typeof candidate.algorithm !== "string" ||
-    typeof candidate.moveCount !== "number" ||
-    typeof candidate.generatedAt !== "string"
-  ) {
-    return undefined;
-  }
-
-  return {
-    method: candidate.method,
-    algorithm: candidate.algorithm,
-    moveCount: candidate.moveCount,
-    states:
-      Array.isArray(candidate.states) &&
-      candidate.states.every((state) => typeof state === "string")
-        ? candidate.states
-        : [],
-    backend: typeof candidate.backend === "string" ? candidate.backend : undefined,
-    generatedAt: candidate.generatedAt,
-  };
-}
-
-function parseStoredSolves(rawValue: string | null): Solve[] {
-  if (!rawValue) return [];
-
-  try {
-    const parsed = JSON.parse(rawValue);
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed.flatMap((item) => {
-      if (typeof item !== "object" || item === null) return [];
-      const candidate = item as Record<string, unknown>;
-      if (
-        typeof candidate.id !== "string" ||
-        typeof candidate.time !== "number" ||
-        typeof candidate.scramble !== "string" ||
-        typeof candidate.date !== "string"
-      ) {
-        return [];
-      }
-
-      const date = new Date(candidate.date);
-      if (Number.isNaN(date.getTime())) return [];
-
-      const penalty =
-        candidate.penalty === "+2" || candidate.penalty === "DNF"
-          ? candidate.penalty
-          : undefined;
-
-      return [
-        {
-          id: candidate.id,
-          time: candidate.time,
-          scramble: candidate.scramble,
-          date,
-          penalty,
-          recommendedSolution: parseStoredSolution(candidate.recommendedSolution),
-        },
-      ];
-    });
-  } catch {
-    return [];
+function getStorageBadge(storageMode: ReturnType<typeof useSolveStore>["storageMode"]) {
+  switch (storageMode) {
+    case "cloud":
+      return {
+        label: "Cloud Sync",
+        icon: Cloud,
+        variant: "secondary" as const,
+      };
+    case "syncing":
+      return {
+        label: "Syncing",
+        icon: RefreshCcw,
+        variant: "outline" as const,
+      };
+    case "sync-error":
+      return {
+        label: "Needs Sync",
+        icon: CloudOff,
+        variant: "destructive" as const,
+      };
+    default:
+      return {
+        label: "Guest Mode",
+        icon: CloudOff,
+        variant: "outline" as const,
+      };
   }
 }
 
 const Index = () => {
   const [scramble, setScramble] = useState(() => generateScramble());
-  const [solves, setSolves] = useState<Solve[]>(() =>
-    parseStoredSolves(localStorage.getItem(STORAGE_KEY))
-  );
   const [solutionState, setSolutionState] = useState<SolutionState>("loading");
   const [currentSolution, setCurrentSolution] = useState<RecommendedSolution>();
   const [solutionError, setSolutionError] = useState<string>();
   const [replaySolve, setReplaySolve] = useState<Solve | null>(null);
   const [replayOpen, setReplayOpen] = useState(false);
+  const [accountPending, setAccountPending] = useState(false);
+  const { user, providers, isAuthConfigured, isLoading: authLoading, signInWithOAuth, signOut } =
+    useAuth();
+  const {
+    solves,
+    isLoading: solvesLoading,
+    storageMode,
+    addSolve,
+    deleteSolve,
+    setPenalty,
+    clearSolves,
+  } = useSolveStore();
   const cubePalette = [
     "#ef4444",
     "#22c55e",
@@ -176,26 +150,25 @@ const Index = () => {
         time,
         scramble,
         date: new Date(),
+        updatedAt: new Date().toISOString(),
         recommendedSolution:
           solutionState === "ready" ? currentSolution : undefined,
       };
-      setSolves((prev) => [solve, ...prev]);
+      void addSolve(solve);
       setScramble(generateScramble());
     },
-    [currentSolution, scramble, solutionState]
+    [addSolve, currentSolution, scramble, solutionState]
   );
 
   const handleDelete = useCallback((id: string) => {
-    setSolves((prev) => prev.filter((s) => s.id !== id));
-  }, []);
+    void deleteSolve(id);
+  }, [deleteSolve]);
 
   const handlePenalty = useCallback(
     (id: string, penalty: "+2" | "DNF" | undefined) => {
-      setSolves((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, penalty } : s))
-      );
+      void setPenalty(id, penalty);
     },
-    []
+    [setPenalty]
   );
 
   const handleOpenReplay = useCallback((solve: Solve) => {
@@ -203,10 +176,6 @@ const Index = () => {
     setReplaySolve(solve);
     setReplayOpen(true);
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(solves));
-  }, [solves]);
 
   const handleExport = useCallback(() => {
     if (solves.length === 0) return;
@@ -235,6 +204,37 @@ const Index = () => {
     URL.revokeObjectURL(url);
   }, [solves]);
 
+  const storageBadge = getStorageBadge(storageMode);
+  const StorageBadgeIcon = storageBadge.icon;
+  const isLoggedIn = Boolean(user);
+
+  const handleAccountClick = useCallback(async () => {
+    if (!isAuthConfigured || accountPending || authLoading) return;
+
+    try {
+      setAccountPending(true);
+
+      if (user) {
+        await signOut();
+        return;
+      }
+
+      const providerId = providers[0]?.id;
+      if (!providerId) return;
+      await signInWithOAuth(providerId);
+    } finally {
+      setAccountPending(false);
+    }
+  }, [
+    accountPending,
+    authLoading,
+    isAuthConfigured,
+    providers,
+    signInWithOAuth,
+    signOut,
+    user,
+  ]);
+
   return (
     <div
       style={vaultThemeVars}
@@ -245,17 +245,43 @@ const Index = () => {
         className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-[linear-gradient(90deg,#ef4444_0%,#22c55e_20%,#3b82f6_40%,#f8fafc_60%,#facc15_80%,#f97316_100%)]"
       />
       {/* Main timer area */}
-      <div className="relative z-10 flex-1 flex flex-col px-4 py-6 md:px-6 gap-5">
-        <header className="rounded-[1.5rem] border-2 border-foreground/85 bg-card px-6 py-5 shadow-[0_10px_0_rgba(0,0,0,0.12)]">
+      <div className="relative z-10 flex-1 flex flex-col px-4 py-5 md:px-6 gap-4">
+        <header className="rounded-[1.5rem] border-2 border-foreground/85 bg-card px-6 py-4 shadow-[0_9px_0_rgba(0,0,0,0.12)]">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-3xl md:text-4xl font-semibold tracking-[0.12em] text-foreground">
-                CubeVault
-              </h1>
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-3xl md:text-4xl font-semibold tracking-[0.12em] text-foreground">
+                  CubeVault
+                </h1>
+                {isAuthConfigured && (
+                  <button
+                    type="button"
+                    onClick={() => void handleAccountClick()}
+                    disabled={accountPending || authLoading}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs uppercase tracking-[0.16em] transition-colors ${
+                      isLoggedIn
+                        ? "border-foreground/70 bg-card text-foreground hover:bg-black hover:text-white"
+                        : "border-foreground/30 bg-card/50 text-muted-foreground hover:border-foreground/60 hover:text-foreground"
+                    }`}
+                    title={
+                      isLoggedIn
+                        ? `Signed in as ${user?.email ?? "account"}. Click to sign out.`
+                        : "Sign in"
+                    }
+                    >
+                    {accountPending ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <CircleUserRound size={14} />
+                    )}
+                    {isLoggedIn && <span>ACC - logged in</span>}
+                  </button>
+                )}
+              </div>
               <p className="mt-2 text-base text-muted-foreground max-w-2xl">
                 Rubik-style timer board with clear cube-color visual language.
               </p>
-              <div className="mt-3 flex items-center gap-2">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 {cubePalette.map((color, index) => (
                   <span
                     key={`${color}-${index}`}
@@ -264,6 +290,17 @@ const Index = () => {
                     aria-hidden
                   />
                 ))}
+                <Badge
+                  variant={storageBadge.variant}
+                  className="gap-1 border border-black/20 bg-card px-2.5 py-1 uppercase tracking-[0.12em]"
+                >
+                  {storageMode === "syncing" ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <StorageBadgeIcon size={12} />
+                  )}
+                  {storageBadge.label}
+                </Badge>
               </div>
             </div>
             <a href="https://github.com/nmncodes/CubeVault" target="_blank" rel="noopener noreferrer">
@@ -278,8 +315,8 @@ const Index = () => {
           </div>
         </header>
 
-        <section className="relative overflow-hidden rounded-[1.6rem] border-2 border-foreground/85 bg-card/95 px-4 py-5 md:px-6 md:py-6 shadow-[0_10px_0_rgba(0,0,0,0.1)]">
-          <div className="relative space-y-4">
+        <section className="relative overflow-hidden rounded-[1.6rem] border-2 border-foreground/85 bg-card/95 px-4 py-4 md:px-6 md:py-5 shadow-[0_9px_0_rgba(0,0,0,0.1)]">
+          <div className="relative space-y-3">
             <ScrambleDisplay
               scramble={scramble}
               solutionState={solutionState}
@@ -287,6 +324,14 @@ const Index = () => {
               errorMessage={solutionError}
             />
             <Timer onSolve={handleSolve} hotkeysEnabled={!replayOpen} />
+            {solvesLoading && (
+              <div className="flex justify-center">
+                <span className="inline-flex items-center gap-2 rounded-full border border-black/15 bg-muted px-4 py-1.5 text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                  <Loader2 size={12} className="animate-spin" />
+                  Loading saved solves
+                </span>
+              </div>
+            )}
             {solves[0]?.recommendedSolution && (
               <div className="mt-2 flex justify-center">
                 <button
@@ -294,7 +339,7 @@ const Index = () => {
                   className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-card px-5 py-2 text-sm text-foreground hover:bg-black hover:text-white transition-colors"
                 >
                   <Eye size={16} />
-                  Replay Optimal Path
+                  Solution
                 </button>
               </div>
             )}
@@ -307,39 +352,12 @@ const Index = () => {
 
 
         <section className="grid gap-3 xl:grid-cols-2">
-          <Card className="border-2 border-black bg-card shadow-[0_8px_0_rgba(0,0,0,0.08)]">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between gap-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <UserRound size={16} />
-                    About CubeVault 
-                  </CardTitle>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 gap-2 px-2 text-muted-foreground hover:bg-black/10 hover:text-foreground"
-                    >
-                    </Button>
-                </div>
-              </CardHeader>
-                <CardContent className="space-y-2 text-sm text-muted-foreground">
-                  <p>
-                    CubeVault is your speedcubing lab. The focus is low-latency
-                    timing, clean stats, and replay-driven learning.
-                  </p>
-                  <p>
-                    Replace this block with your personal story, cubing goals, and
-                    links. It is intentionally kept easy to edit in{" "}
-                    <code className="font-mono-timer">src/pages/Index.tsx</code>.
-                  </p>
-                </CardContent>
-          </Card>
 
           <Card className="border-2 border-black bg-card shadow-[0_8px_0_rgba(0,0,0,0.08)]">
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <Info size={16} />
-                Want To Contribute?
+                Want To Add Something?
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
@@ -354,7 +372,7 @@ const Index = () => {
                     className="gap-2 border border-black bg-card text-foreground hover:bg-black hover:text-white"
                   >
                     <Github size={14} />
-                    Open Contribute Page
+                    Contribute
                   </Button>
                 </a>
               </div>
@@ -371,9 +389,17 @@ const Index = () => {
             aria-hidden
             className="pointer-events-none absolute inset-x-2 top-0 h-0.5 rounded-full bg-[linear-gradient(90deg,#ef4444_0%,#22c55e_20%,#3b82f6_40%,#f8fafc_60%,#facc15_80%,#f97316_100%)]"
           />
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-[0.2em]">
-            Session Log ({solves.length})
-          </span>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-[0.2em]">
+              Session Log ({solves.length})
+            </span>
+            <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              {storageMode === "guest" && "Saved only on this device"}
+              {storageMode === "syncing" && "Syncing account storage"}
+              {storageMode === "cloud" && "Saved to your account"}
+              {storageMode === "sync-error" && "Using local cache until sync recovers"}
+            </span>
+          </div>
           <div className="flex items-center gap-2">
             {solves.length > 0 && (
               <button
@@ -387,7 +413,7 @@ const Index = () => {
             )}
             {solves.length > 0 && (
               <button
-                onClick={() => setSolves([])}
+                onClick={() => void clearSolves()}
                 className="text-xs text-destructive hover:text-destructive/80 transition-colors uppercase tracking-[0.12em]"
               >
                 Clear all

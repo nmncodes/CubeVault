@@ -14,7 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import CubeNet2D from "@/components/CubeNet2D";
 import MiniCube from "@/components/MiniCube";
 import ThreeCubePlayer from "@/components/ThreeCubePlayer";
 import { invertAlgorithm, parseAlgorithm } from "@/lib/cube-visualizer";
@@ -249,14 +248,6 @@ const SolutionReplayDialog = ({
                         )}
                       </div>
                       <div className="mt-1 grid flex-1 gap-2">
-                        <div className="rounded-lg border border-border/50 bg-background/30 p-2">
-                          <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                            2D net
-                          </div>
-                          <div className="flex items-center justify-center">
-                            <CubeNet2D state={state} compact />
-                          </div>
-                        </div>
                         <div className="rounded-lg border border-border/50 bg-background/30 p-2">
                           <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
                             3D view

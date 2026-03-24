@@ -1,10 +1,13 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import os from "node:os";
 import { spawn } from "node:child_process";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
+import { createAuthMiddleware } from "./server/auth.ts";
+import { readJsonBody, writeJson } from "./server/http.ts";
+import { createSolveStorageMiddleware } from "./server/solves.ts";
 
 const API_PATH = "/api/solve";
 const SOLVER_SCRIPT_PATH = path.resolve(__dirname, "solver", "solve_scramble.py");
@@ -60,43 +63,6 @@ function getPythonTargets(): PythonTarget[] {
     seen.add(key);
     return true;
   });
-}
-
-function readJsonBody(req: IncomingMessage): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    let size = 0;
-
-    req.on("data", (chunk: Buffer) => {
-      size += chunk.length;
-      if (size > 1_000_000) {
-        reject(new Error("Request body is too large."));
-        return;
-      }
-      chunks.push(chunk);
-    });
-
-    req.on("end", () => {
-      try {
-        const body = Buffer.concat(chunks).toString("utf8") || "{}";
-        resolve(JSON.parse(body));
-      } catch {
-        reject(new Error("Invalid JSON body."));
-      }
-    });
-
-    req.on("error", reject);
-  });
-}
-
-function writeJson(
-  res: ServerResponse,
-  statusCode: number,
-  payload: Record<string, unknown>
-) {
-  res.statusCode = statusCode;
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.end(JSON.stringify(payload));
 }
 
 function runSolverWithTarget(
@@ -219,46 +185,66 @@ async function solveScramble(scramble: string, method: string) {
 }
 
 function rubikSolverApi(): Plugin {
+  const authMiddleware = createAuthMiddleware();
+  const solveStorageMiddleware = createSolveStorageMiddleware();
+
   const middleware = async (
     req: IncomingMessage,
     res: ServerResponse,
     next: (err?: unknown) => void
   ) => {
-    const url = req.url ? req.url.split("?")[0] : "";
-    if (url !== API_PATH) {
-      next();
-      return;
-    }
-
-    if (req.method !== "POST") {
-      writeJson(res, 405, { error: "Only POST is supported for /api/solve." });
-      return;
-    }
-
-    try {
-      const body = (await readJsonBody(req)) as Record<string, unknown>;
-      const scramble = typeof body.scramble === "string" ? body.scramble.trim() : "";
-      const method = typeof body.method === "string" ? body.method : "Kociemba";
-
-      if (!scramble) {
-        writeJson(res, 400, { error: "Missing scramble." });
+    authMiddleware(req, res, async (authError) => {
+      if (authError) {
+        next(authError);
         return;
       }
 
-      if (!ALLOWED_METHODS.has(method)) {
-        writeJson(res, 400, {
-          error: `Invalid method. Use one of: ${Array.from(ALLOWED_METHODS).join(", ")}.`,
-        });
-        return;
-      }
+      solveStorageMiddleware(req, res, async (storageError) => {
+        if (storageError) {
+          next(storageError);
+          return;
+        }
 
-      const result = await solveScramble(scramble, method);
-      writeJson(res, 200, result);
-    } catch (error) {
-      writeJson(res, 500, {
-        error: error instanceof Error ? error.message : "Unknown solver error",
+        const url = req.url ? req.url.split("?")[0] : "";
+        if (url !== API_PATH) {
+          next();
+          return;
+        }
+
+        if (req.method !== "POST") {
+          writeJson(res, 405, { error: "Only POST is supported for /api/solve." });
+          return;
+        }
+
+        try {
+          const body = (await readJsonBody(req)) as Record<string, unknown>;
+          const scramble =
+            typeof body.scramble === "string" ? body.scramble.trim() : "";
+          const method =
+            typeof body.method === "string" ? body.method : "Kociemba";
+
+          if (!scramble) {
+            writeJson(res, 400, { error: "Missing scramble." });
+            return;
+          }
+
+          if (!ALLOWED_METHODS.has(method)) {
+            writeJson(res, 400, {
+              error: `Invalid method. Use one of: ${Array.from(ALLOWED_METHODS).join(", ")}.`,
+            });
+            return;
+          }
+
+          const result = await solveScramble(scramble, method);
+          writeJson(res, 200, result);
+        } catch (error) {
+          writeJson(res, 500, {
+            error:
+              error instanceof Error ? error.message : "Unknown solver error",
+          });
+        }
       });
-    }
+    });
   };
 
   return {
@@ -273,18 +259,24 @@ function rubikSolverApi(): Plugin {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  server: {
-    host: "::",
-    port: 8080,
-    hmr: {
-      overlay: false,
+export default defineConfig(({ mode }) => {
+  // Ensure server-side middleware can read values from .env files.
+  Object.assign(process.env, loadEnv(mode, process.cwd(), ""));
+
+  return {
+    server: {
+      host: "::",
+      port: 8080,
+      strictPort: true,
+      hmr: {
+        overlay: false,
+      },
     },
-  },
-  plugins: [react(), rubikSolverApi()].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+    plugins: [react(), rubikSolverApi()].filter(Boolean),
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
     },
-  },
-}));
+  };
+});

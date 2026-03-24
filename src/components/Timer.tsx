@@ -122,20 +122,20 @@ const Timer = ({ onSolve, hotkeysEnabled = true }: TimerProps) => {
 
   return (
     <div
-      className="relative flex flex-col items-center justify-center flex-1 select-none cursor-pointer min-h-[48vh] rounded-[1.75rem] border-2 border-foreground/85 bg-card px-4 py-6 shadow-[0_10px_0_rgba(0,0,0,0.1)]"
+      className="relative flex flex-col items-center justify-center flex-1 select-none cursor-pointer min-h-[34vh] md:min-h-[36vh] rounded-[1.5rem] border-2 border-foreground/85 bg-card px-4 py-4 shadow-[0_8px_0_rgba(0,0,0,0.1)]"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <div className="pointer-events-none absolute inset-x-8 top-6 h-3 rounded-full bg-[linear-gradient(90deg,#ef4444_0%,#3b82f6_20%,#22c55e_40%,#f8fafc_60%,#facc15_80%,#f97316_100%)] opacity-90" />
-      <div className="pointer-events-none absolute inset-x-8 bottom-6 h-3 rounded-full bg-[linear-gradient(90deg,#f97316_0%,#facc15_20%,#f8fafc_40%,#22c55e_60%,#3b82f6_80%,#ef4444_100%)] opacity-90" />
+      <div className="pointer-events-none absolute inset-x-8 top-4 h-2 rounded-full bg-[linear-gradient(90deg,#ef4444_0%,#3b82f6_20%,#22c55e_40%,#f8fafc_60%,#facc15_80%,#f97316_100%)] opacity-90" />
+      <div className="pointer-events-none absolute inset-x-8 bottom-4 h-2 rounded-full bg-[linear-gradient(90deg,#f97316_0%,#facc15_20%,#f8fafc_40%,#22c55e_60%,#3b82f6_80%,#ef4444_100%)] opacity-90" />
       <div className="relative flex flex-col items-center">
         <span
-          className={`font-mono-timer text-[5.2rem] sm:text-[6.8rem] md:text-[9.2rem] lg:text-[10.6rem] xl:text-[11.5rem] font-bold tracking-[0.04em] transition-colors duration-150 ${colorClass} ${state === "ready" ? "animate-pulse-ready" : ""}`}
+          className={`font-mono-timer text-[4.4rem] sm:text-[5.6rem] md:text-[7.2rem] lg:text-[8.2rem] xl:text-[9rem] font-bold tracking-[0.04em] transition-colors duration-150 ${colorClass} ${state === "ready" ? "animate-pulse-ready" : ""}`}
           style={{ lineHeight: 1 }}
         >
           {display}
         </span>
-        <p className="mt-6 rounded-full border border-foreground/30 bg-muted px-4 py-1.5 text-muted-foreground text-sm md:text-base uppercase tracking-[0.2em]">
+        <p className="mt-3 rounded-full border border-foreground/30 bg-muted px-3 py-1 text-muted-foreground text-xs md:text-sm uppercase tracking-[0.18em]">
           {state === "idle" && "Hold Space"}
           {state === "holding" && "Hold..."}
           {state === "ready" && "Release To Launch"}

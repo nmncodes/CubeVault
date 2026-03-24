@@ -1,16 +1,87 @@
 # CubeVault
 
-A Rubik's Cube scramble and solve timer.
+CubeVault is a Rubik-style timer board with scramble generation, solve history,
+stats, and replay support.
 
-## Solver integration
+## Stack
 
-CubeVault can call Python `rubik-solver` to generate a near-optimal solution for
-each scramble.
+- Frontend: React + TypeScript + Vite + Tailwind
+- Auth: Auth.js (`@auth/core`) with OAuth providers
+- Auth persistence: Prisma adapter + Neon Postgres
+- Solve persistence: Neon table via server API
+- Solver API: Python backend (`solver/solve_scramble.py`)
 
-1. Install Python (3.10+ recommended).
-2. Install package: `pip install rubik-solver`
-3. (Optional) point CubeVault to a specific interpreter:
-   `CUBEVAULT_PYTHON=C:\path\to\python.exe`
+## Local development setup
 
-When running `vite`/`vite preview`, CubeVault exposes `POST /api/solve` and
-executes `solver/solve_scramble.py` through your Python interpreter.
+### 1. Install dependencies
+
+```bash
+corepack pnpm install
+```
+
+### 2. Configure environment
+
+Copy `.env.example` to `.env`, then set real values:
+
+- `AUTH_SECRET`
+- `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`
+- `DATABASE_URL`
+- optional: `AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET`
+- optional: `CUBEVAULT_PYTHON`
+
+
+### 3. Sync database schema
+
+```bash
+corepack pnpm prisma:generate
+corepack pnpm prisma:push
+```
+
+This provisions Auth.js tables (`User`, `Account`, `Session`, `VerificationToken`).
+
+If your solve table is missing, run SQL from:
+
+- `neon/cubevault.sql`
+
+### 4. Run the app
+
+```bash
+corepack pnpm dev
+```
+
+Server runs on:
+
+- `http://localhost:8080` (strict port)
+
+## Useful scripts
+
+- `corepack pnpm dev`
+- `corepack pnpm build`
+- `corepack pnpm preview`
+- `corepack pnpm test`
+- `corepack pnpm lint`
+- `corepack pnpm prisma:generate`
+- `corepack pnpm prisma:push`
+
+## API routes
+
+- `GET /api/auth-meta`
+  returns auth/database/provider readiness.
+- `GET|POST /api/auth/*`
+  handled by Auth.js middleware.
+- `GET /api/solves`
+  returns current signed-in user's solves.
+- `POST /api/solves/sync`
+  replaces signed-in user's solve set.
+- `POST /api/solve`
+  returns solver output for a scramble.
+
+## Troubleshooting
+
+- `DATABASE_URL is not configured`
+  `.env` is missing or not loaded in your dev process.
+- `relation "cubevault_solves" does not exist`
+  run `corepack pnpm prisma:push` and/or apply `neon/cubevault.sql`.
+- `/api/auth-meta` shows `authConfigured: false`
+  missing `AUTH_SECRET` or no valid OAuth provider envs.
+
