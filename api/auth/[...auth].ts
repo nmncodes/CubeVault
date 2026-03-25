@@ -30,9 +30,4 @@ export default async function handler(
     }
   });
 
-  if (!res.writableEnded) {
-    res.statusCode = 404;
-    res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.end(JSON.stringify({ error: "Not found." }));
-  }
 }
