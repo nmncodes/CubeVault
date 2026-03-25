@@ -9,30 +9,29 @@ export default async function handler(
 ) {
   await new Promise<void>((resolve, reject) => {
     authMiddleware(req, res, (error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve();
+      if (error) reject(error);
+      else resolve();
     });
   }).catch((error) => {
-    if (!res.writableEnded) {
-      res.statusCode = 500;
-      res.setHeader("Content-Type", "application/json; charset=utf-8");
-      res.end(
-        JSON.stringify({
-          error:
-            error instanceof Error
-              ? error.message
-              : "Unable to handle /api/auth-meta.",
-        })
-      );
-    }
+    res.statusCode = 500;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ error: error.message }));
   });
 
-  if (!res.writableEnded) {
-    res.statusCode = 404;
-    res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.end(JSON.stringify({ error: "Not found." }));
-  }
+  if (res.writableEnded) return;
+
+  const authConfigured = Boolean(process.env.AUTH_SECRET);
+  const databaseConfigured = Boolean(process.env.DATABASE_URL);
+
+  res.statusCode = 200;
+  res.setHeader("Content-Type", "application/json");
+  res.end(
+    JSON.stringify({
+      authConfigured,
+      databaseConfigured,
+      providers: [
+        process.env.AUTH_GOOGLE_ID ? { id: "google", name: "Google" } : null,
+      ].filter(Boolean),
+    })
+  );
 }
