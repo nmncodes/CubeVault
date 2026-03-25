@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { createSolveStorageMiddleware } from "../../server/solves";
+import { createSolveStorageMiddleware } from "../../server/solves.js";
 
 const solveStorageMiddleware = createSolveStorageMiddleware();
 

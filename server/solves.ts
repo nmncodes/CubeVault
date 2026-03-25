@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { getSessionFromRequest, getSessionUserId } from "./auth";
-import { getPathname, toWebRequest, writeJson } from "./http";
+import { getSessionFromRequest, getSessionUserId } from "./auth.js";
+import { getPathname, toWebRequest, writeJson } from "./http.js";
 
 type RecommendedSolution = {
   method: string;

@@ -3,8 +3,8 @@ import GitHub from "@auth/core/providers/github";
 import Google from "@auth/core/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { getPathname, toWebRequest, writeJson, writeWebResponse } from "./http";
-import { prisma } from "./prisma";
+import { getPathname, toWebRequest, writeJson, writeWebResponse } from "./http.js";
+import { prisma } from "./prisma.js";
 
 type AuthProviderMeta = {
   id: string;

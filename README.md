@@ -9,7 +9,7 @@ stats, and replay support.
 - Auth: Auth.js (`@auth/core`) with OAuth providers
 - Auth persistence: Prisma adapter + Neon Postgres
 - Solve persistence: Neon table via server API
-- Solver API: Python backend (`solver/solve_scramble.py`)
+- Solver API: Vercel Python Function (`api/solve.py`) using `solver/solve_scramble.py`
 
 ## Local development setup
 
@@ -27,7 +27,7 @@ Copy `.env.example` to `.env`, then set real values:
 - `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`
 - `DATABASE_URL`
 - optional: `AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET`
-- optional: `CUBEVAULT_PYTHON`
+- optional (local dev only): `CUBEVAULT_PYTHON`
 
 
 ### 3. Sync database schema
@@ -79,10 +79,9 @@ Notes:
 
 - Vercel serverless APIs are in `api/`:
   `api/auth/[...auth].ts`, `api/auth-meta.ts`, `api/solves.ts`,
-  `api/solves/sync.ts`, `api/solve.ts`.
+  `api/solves/sync.ts`, `api/solve.py`.
 - SPA fallback is configured in `vercel.json`.
-- `api/solve.ts` requires Python + `rubik-solver`. On Vercel Node functions this
-  may be unavailable unless you provide a compatible runtime/service.
+- Python dependency install is driven by root `requirements.txt` (`rubik-solver`).
 - Update OAuth callbacks to your production domain:
   - `https://YOUR_DOMAIN/api/auth/callback/google`
   - `https://YOUR_DOMAIN/api/auth/callback/github`

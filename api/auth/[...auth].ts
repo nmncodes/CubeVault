@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { createAuthMiddleware } from "../../server/auth";
+import { createAuthMiddleware } from "../../server/auth.js";
 
 const authMiddleware = createAuthMiddleware();
 
