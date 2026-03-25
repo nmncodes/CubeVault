@@ -23,7 +23,12 @@ const ScrambleDisplay = ({
     { bg: "#f97316", fg: "#111827" },
   ];
 
-  const statusText ="Ready"
+  const statusText =
+    solutionState === "loading"
+      ? "Solving..."
+      : solutionState === "ready"
+        ? `Ready (${solution?.moveCount ?? 0} moves)`
+        : "Solver unavailable";
 
   const statusClass =
     solutionState === "loading"
@@ -49,6 +54,21 @@ const ScrambleDisplay = ({
           );
         })}
       </div>
+      <div className="mt-3 flex items-center justify-center">
+        <span
+          className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.14em] ${statusClass}`}
+        >
+          {statusText}
+        </span>
+      </div>
+      {solutionState === "ready" && solution?.algorithm && (
+        <p className="mt-2 break-words text-xs text-muted-foreground">
+          {solution.algorithm}
+        </p>
+      )}
+      {solutionState === "error" && errorMessage && (
+        <p className="mt-2 break-words text-xs text-destructive">{errorMessage}</p>
+      )}
     </div>
   );
 };

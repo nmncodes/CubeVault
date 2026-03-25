@@ -28,6 +28,7 @@ Copy `.env.example` to `.env`, then set real values:
 - `DATABASE_URL`
 - optional: `AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET`
 - optional (local dev only): `CUBEVAULT_PYTHON`
+- optional: `VITE_SOLVER_API_ORIGIN` (use external solver host)
 
 
 ### 3. Sync database schema
@@ -85,6 +86,29 @@ Notes:
 - Update OAuth callbacks to your production domain:
   - `https://YOUR_DOMAIN/api/auth/callback/google`
   - `https://YOUR_DOMAIN/api/auth/callback/github`
+- Verify APIs after deploy:
+  - `GET https://YOUR_DOMAIN/api/auth-meta`
+  - `POST https://YOUR_DOMAIN/api/solve` with `{"scramble":"R U R' U'","method":"Kociemba"}`
+
+## Optional: Use Render For Solver Only
+
+If `/api/solve` is unstable on Vercel for your project, you can keep Auth + solves
+on Vercel and move only the solver to Render.
+
+1. Create a new Render Web Service from this repo.
+2. Use:
+   - Build command: `pip install -r solver_service/requirements.txt`
+   - Start command: `uvicorn solver_service.app:app --host 0.0.0.0 --port $PORT`
+3. Set `ALLOWED_ORIGINS` on Render:
+   - production: `https://YOUR_VERCEL_DOMAIN`
+4. Copy your Render URL, then set this Vercel env var:
+   - `VITE_SOLVER_API_ORIGIN=https://YOUR_RENDER_DOMAIN`
+5. Redeploy Vercel frontend.
+
+Health checks:
+
+- `GET https://YOUR_RENDER_DOMAIN/health`
+- `POST https://YOUR_RENDER_DOMAIN/api/solve` with `{"scramble":"R U R' U'","method":"Kociemba"}`
 
 ## API routes
 
@@ -107,3 +131,11 @@ Notes:
   run `corepack pnpm prisma:push` and/or apply `neon/cubevault.sql`.
 - `/api/auth-meta` shows `authConfigured: false`
   missing `AUTH_SECRET` or no valid OAuth provider envs.
+- Login button appears to do nothing
+  verify `GET /api/auth-meta` returns JSON, then verify OAuth redirect URIs
+  exactly match your Vercel domain callback URLs.
+- Solver status stays unavailable
+  check Vercel Function logs for `/api/solve`; as a fallback, deploy solver
+  separately and set `VITE_SOLVER_API_ORIGIN=https://your-solver-service.onrender.com`.
+- Avoid splitting Auth.js backend to another origin unless you also redesign auth
+  (cross-origin cookie sessions are fragile). Keep auth/solves on same origin.

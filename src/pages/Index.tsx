@@ -26,6 +26,7 @@ import SessionDashboard from "@/components/SessionDashboard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
 import { useSolveStore } from "@/hooks/use-solves";
 import { useAuth } from "@/hooks/use-auth";
 type SolutionState = "loading" | "ready" | "error";
@@ -67,6 +68,7 @@ const Index = () => {
   const [replaySolve, setReplaySolve] = useState<Solve | null>(null);
   const [replayOpen, setReplayOpen] = useState(false);
   const [accountPending, setAccountPending] = useState(false);
+  const { toast } = useToast();
   const { user, providers, isAuthConfigured, isLoading: authLoading, signInWithOAuth, signOut } =
     useAuth();
   const {
@@ -209,7 +211,16 @@ const Index = () => {
   const isLoggedIn = Boolean(user);
 
   const handleAccountClick = useCallback(async () => {
-    if (!isAuthConfigured || accountPending || authLoading) return;
+    if (accountPending || authLoading) return;
+
+    if (!isAuthConfigured) {
+      toast({
+        title: "Login is not configured",
+        description:
+          "Check /api/auth-meta and set AUTH_SECRET, OAuth keys, and DATABASE_URL in Vercel.",
+      });
+      return;
+    }
 
     try {
       setAccountPending(true);
@@ -220,8 +231,24 @@ const Index = () => {
       }
 
       const providerId = providers[0]?.id;
-      if (!providerId) return;
+      if (!providerId) {
+        toast({
+          title: "No OAuth provider found",
+          description:
+            "Set AUTH_GOOGLE_ID and AUTH_GOOGLE_SECRET (or GitHub) in Vercel environment variables.",
+        });
+        return;
+      }
+
       await signInWithOAuth(providerId);
+    } catch (error) {
+      toast({
+        title: "Login request failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Unable to start login flow. Check deployment logs for /api/auth.",
+      });
     } finally {
       setAccountPending(false);
     }
@@ -232,6 +259,7 @@ const Index = () => {
     providers,
     signInWithOAuth,
     signOut,
+    toast,
     user,
   ]);
 

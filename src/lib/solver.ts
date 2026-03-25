@@ -8,11 +8,20 @@ type SolverApiResponse = {
   backend?: string;
 };
 
+function getSolverEndpoint() {
+  const configuredOrigin = import.meta.env.VITE_SOLVER_API_ORIGIN;
+  if (typeof configuredOrigin !== "string" || configuredOrigin.trim().length === 0) {
+    return "/api/solve";
+  }
+
+  return `${configuredOrigin.trim().replace(/\/+$/, "")}/api/solve`;
+}
+
 export async function fetchSolutionForScramble(
   scramble: string,
   signal?: AbortSignal
 ): Promise<RecommendedSolution> {
-  const response = await fetch("/api/solve", {
+  const response = await fetch(getSolverEndpoint(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
