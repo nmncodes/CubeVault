@@ -1,4 +1,5 @@
 import { RecommendedSolution } from "@/lib/scramble";
+import { API_BASE_URL } from "@/lib/api";
 
 type SolverApiResponse = {
   method: string;
@@ -11,7 +12,7 @@ type SolverApiResponse = {
 function getSolverEndpoint() {
   const configuredOrigin = import.meta.env.VITE_SOLVER_API_ORIGIN;
   if (typeof configuredOrigin !== "string" || configuredOrigin.trim().length === 0) {
-    return "/api/solve";
+    return `${API_BASE_URL}/api/solve`;
   }
 
   return `${configuredOrigin.trim().replace(/\/+$/, "")}/api/solve`;

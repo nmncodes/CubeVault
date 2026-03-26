@@ -41,7 +41,7 @@ function getCallbackUrl() {
 
 async function getCsrfToken() {
   const payload = await parseJson<CsrfResponse>(
-    await fetch("/api/auth/csrf", {
+    await fetch(`${API_BASE_URL}/api/auth/csrf`, {
       credentials: "same-origin",
       cache: "no-store",
     })
@@ -90,7 +90,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     try {
       const meta = await parseJson<AuthMetaResponse>(
-        await fetch("/api/auth-meta", {
+        await fetch(`${API_BASE_URL}/api/auth-meta`, {
           credentials: "same-origin",
           cache: "no-store",
         })
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
 
       const nextSession = await parseJson<AuthSession>(
-        await fetch("/api/auth/session", {
+        await fetch(`${API_BASE_URL}/api/auth/session`, {
           credentials: "same-origin",
           cache: "no-store",
         })
@@ -139,11 +139,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (!isAuthConfigured) {
           throw new Error("Auth.js is not configured.");
         }
-        await postAuthAction(`/api/auth/signin/${providerId}`);
+        await postAuthAction(`${API_BASE_URL}/api/auth/signin/${providerId}`);
       },
       async signOut() {
         if (!isAuthConfigured) return;
-        await postAuthAction("/api/auth/signout");
+        await postAuthAction(`${API_BASE_URL}/api/auth/signout`);
       },
       refreshSession,
     }),

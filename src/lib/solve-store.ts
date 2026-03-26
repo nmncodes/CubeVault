@@ -165,6 +165,8 @@ export function saveAccountCachedSolves(userId: string, solves: Solve[]) {
   );
 }
 
+import { API_BASE_URL } from "@/lib/api";
+
 async function getErrorMessage(response: Response, fallback: string) {
   try {
     const payload = (await response.json()) as { error?: string; message?: string };
@@ -175,7 +177,7 @@ async function getErrorMessage(response: Response, fallback: string) {
 }
 
 export async function listRemoteSolves() {
-  const response = await fetch("/api/solves", {
+  const response = await fetch(`${API_BASE_URL}/api/solves`, {
     credentials: "same-origin",
     cache: "no-store",
   });
@@ -189,7 +191,7 @@ export async function listRemoteSolves() {
 }
 
 export async function syncRemoteSolves(solves: Solve[]) {
-  const response = await fetch("/api/solves/sync", {
+  const response = await fetch(`${API_BASE_URL}/api/solves/sync`, {
     method: "POST",
     credentials: "same-origin",
     headers: {
