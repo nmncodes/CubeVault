@@ -86,6 +86,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshSession = useCallback(async () => {
+    setIsLoading(false);
+    setIsAuthConfigured(false);
+    setIsStorageConfigured(false);
+    setSession(null);
+    /* 
     setIsLoading(true);
 
     try {
@@ -121,6 +126,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     } finally {
       setIsLoading(false);
     }
+    */
   }, []);
 
   useEffect(() => {

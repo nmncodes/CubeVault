@@ -41,12 +41,15 @@ export function useSolveStore() {
   const [lastSyncError, setLastSyncError] = useState<string>();
   const solvesRef = useRef<Solve[]>([]);
 
+  /* 
   const accountId =
     typeof user?.id === "string" && user.id.length > 0
       ? user.id
       : typeof user?.email === "string" && user.email.length > 0
         ? user.email.toLowerCase()
         : null;
+  */
+  const accountId = null;
 
   useEffect(() => {
     solvesRef.current = solves;
