@@ -1,4 +1,4 @@
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
-rubik-solver==1.1.4
+rubik-solver==0.2.0
 future==0.18.3
