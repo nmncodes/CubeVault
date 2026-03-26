@@ -239,7 +239,7 @@ const Index = () => {
         });
         return;
       }
-
+      
       await signInWithOAuth(providerId);
     } catch (error) {
       toast({
@@ -279,7 +279,7 @@ const Index = () => {
             <div>
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-3xl md:text-4xl font-semibold tracking-[0.12em] text-foreground">
-                  CubeVault
+                  CubeVault app
                 </h1>
                 <button
                   type="button"
