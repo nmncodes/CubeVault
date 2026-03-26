@@ -14,21 +14,6 @@ const ScrambleDisplay = ({
   errorMessage,
 }: ScrambleDisplayProps) => {
   const scrambleMoves = scramble.trim().split(/\s+/).filter(Boolean);
-  const cubeStickers: Array<{ bg: string; fg: string }> = [
-    { bg: "#ef4444", fg: "#f8fafc" },
-    { bg: "#3b82f6", fg: "#f8fafc" },
-    { bg: "#22c55e", fg: "#f8fafc" },
-    { bg: "#f8fafc", fg: "#111827" },
-    { bg: "#facc15", fg: "#111827" },
-    { bg: "#f97316", fg: "#111827" },
-  ];
-
-  const statusText =
-    solutionState === "loading"
-      ? "Solving..."
-      : solutionState === "ready"
-        ? `Ready (${solution?.moveCount ?? 0} moves)`
-        : "Solver unavailable";
 
   const statusClass =
     solutionState === "loading"
@@ -54,21 +39,6 @@ const ScrambleDisplay = ({
           );
         })}
       </div>
-      <div className="mt-3 flex items-center justify-center">
-        <span
-          className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.14em] ${statusClass}`}
-        >
-          {statusText}
-        </span>
-      </div>
-      {solutionState === "ready" && solution?.algorithm && (
-        <p className="mt-2 break-words text-xs text-muted-foreground">
-          {solution.algorithm}
-        </p>
-      )}
-      {solutionState === "error" && errorMessage && (
-        <p className="mt-2 break-words text-xs text-destructive">{errorMessage}</p>
-      )}
     </div>
   );
 };
