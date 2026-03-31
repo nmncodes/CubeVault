@@ -93,7 +93,7 @@ def main() -> int:
         return 2
 
     scramble = sys.argv[1]
-    method = sys.argv[2] if len(sys.argv) > 2 else "Kociemba"
+    method = sys.argv[2] if len(sys.argv) > 2 else "CFOP"
 
     try:
         payload = solve_scramble(scramble, method)

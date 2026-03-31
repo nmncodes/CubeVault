@@ -24,7 +24,7 @@ type CubieState = {
 
 type MoveConfig = {
   axis: Axis;
-  layer: -1 | 0 | 1;
+  layer: -1 | 0 | 1 | "all";
   baseSign: 1 | -1;
 };
 
@@ -59,6 +59,9 @@ const MOVE_MAP: Record<string, MoveConfig> = {
   D: { axis: "y", layer: -1, baseSign: 1 },
   F: { axis: "z", layer: 1, baseSign: -1 },
   B: { axis: "z", layer: -1, baseSign: 1 },
+  X: { axis: "x", layer: "all", baseSign: -1 },
+  Y: { axis: "y", layer: "all", baseSign: -1 },
+  Z: { axis: "z", layer: "all", baseSign: -1 },
 };
 
 const AXIS_VECTORS: Record<Axis, THREE.Vector3> = {
@@ -108,7 +111,7 @@ function createCubieMaterials(x: number, y: number, z: number) {
 
 function parseMoveToken(token: string): {
   axis: Axis;
-  layer: -1 | 0 | 1;
+  layer: -1 | 0 | 1 | "all";
   axisVector: THREE.Vector3;
   angle: number;
   turns: number;
@@ -247,7 +250,10 @@ const ThreeCubePlayer = ({
       if (!parsed) return;
 
       const { axis, layer, axisVector, angle, turns } = parsed;
-      const selected = cubieState.filter((cubie) => cubie[axis] === layer);
+      const selected =
+        layer === "all"
+          ? [...cubieState]
+          : cubieState.filter((cubie) => cubie[axis] === layer);
       if (selected.length === 0) return;
 
       if (!animate) {

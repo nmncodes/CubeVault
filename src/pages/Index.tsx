@@ -9,6 +9,7 @@ import {
   Info,
   Loader2,
   RefreshCcw,
+  Sigma,
   UserRound,
 } from "lucide-react";
 import {
@@ -129,7 +130,7 @@ const Index = () => {
     setCurrentSolution(undefined);
     setSolutionError(undefined);
 
-    fetchSolutionForScramble(scramble, controller.signal)
+    fetchSolutionForScramble(scramble, "CFOP", controller.signal)
       .then((solution) => {
         setCurrentSolution(solution);
         setSolutionState("ready");
@@ -281,7 +282,7 @@ const Index = () => {
                 <h1 className="text-3xl md:text-4xl font-semibold tracking-[0.12em] text-foreground">
                   CubeVault app
                 </h1>
-                <button
+                {/* <button
                   type="button"
                   onClick={() => void handleAccountClick()}
                   disabled={accountPending || authLoading}
@@ -306,7 +307,7 @@ const Index = () => {
                     <CircleUserRound size={14} />
                   )}
                   {isLoggedIn && <span>ACC - logged in</span>}
-                </button>
+                </button> */}
               </div>
               <p className="mt-2 text-base text-muted-foreground max-w-2xl">
                 Rubik-style timer board with clear cube-color visual language.
@@ -320,7 +321,7 @@ const Index = () => {
                     aria-hidden
                   />
                 ))}
-                <Badge
+                {/* <Badge
                   variant={storageBadge.variant}
                   className="gap-1 border border-black/20 bg-card px-2.5 py-1 uppercase tracking-[0.12em]"
                 >
@@ -330,7 +331,7 @@ const Index = () => {
                     <StorageBadgeIcon size={12} />
                   )}
                   {storageBadge.label}
-                </Badge>
+                </Badge> */}
               </div>
             </div>
             <a href="https://github.com/nmncodes/CubeVault" target="_blank" rel="noopener noreferrer">
@@ -387,14 +388,48 @@ const Index = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <Info size={16} />
-                Want To Add Something?
+                Features
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <p>
-                Help shape the roadmap: replay polish, advanced stats, import/export,
-                and profile features.
+              <p className="leading-relaxed">
+                Practice with a focused timer workflow, inspect your solves, and keep your session history portable.
               </p>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="rounded-xl border border-black/15 bg-[linear-gradient(135deg,rgba(59,130,246,0.13),rgba(59,130,246,0.04))] p-3">
+                  <div className="mb-1.5 inline-flex h-7 w-7 items-center justify-center rounded-md border border-black/20 bg-white/70 text-foreground">
+                    <Eye size={14} />
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground">Solution Replay</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Step through recommended solution paths for completed solves.</p>
+                </div>
+
+                <div className="rounded-xl border border-black/15 bg-[linear-gradient(135deg,rgba(34,197,94,0.14),rgba(34,197,94,0.04))] p-3">
+                  <div className="mb-1.5 inline-flex h-7 w-7 items-center justify-center rounded-md border border-black/20 bg-white/70 text-foreground">
+                    <RefreshCcw size={14} />
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground">Session Analytics</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Track averages, trends, and pace changes inside each session.</p>
+                </div>
+
+                <div className="rounded-xl border border-black/15 bg-[linear-gradient(135deg,rgba(234,179,8,0.16),rgba(234,179,8,0.05))] p-3">
+                  <div className="mb-1.5 inline-flex h-7 w-7 items-center justify-center rounded-md border border-black/20 bg-white/70 text-foreground">
+                    <Download size={14} />
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground">Data Export</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Download your full solve history as JSON whenever you want.</p>
+                </div>
+
+                <div className="rounded-xl border border-black/15 bg-[linear-gradient(135deg,rgba(249,115,22,0.16),rgba(249,115,22,0.05))] p-3">
+                  <div className="mb-1.5 inline-flex h-7 w-7 items-center justify-center rounded-md border border-black/20 bg-white/70 text-foreground">
+                    <Sigma size={14} />
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground">CFOP + Kociemba</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Get solve paths by both CFOP and Kociemba(solves any scramble in least moves possible)</p>
+                </div>
+              </div>
+{/* 
               <div className="flex flex-wrap gap-2">
                 <a href="https://github.com/nmncodes/CubeVault" target="_blank" rel="noopener noreferrer">
                   <Button
@@ -405,7 +440,7 @@ const Index = () => {
                     Contribute
                   </Button>
                 </a>
-              </div>
+              </div> */}
             </CardContent>
           </Card>
         </section>

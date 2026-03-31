@@ -43,14 +43,14 @@ class handler(BaseHTTPRequestHandler):
             return
 
         scramble = body.get("scramble")
-        method = body.get("method", "Kociemba")
+        method = body.get("method", "CFOP")
 
         if not isinstance(scramble, str) or not scramble.strip():
             write_json(self, 400, {"error": "Missing scramble."})
             return
 
         if not isinstance(method, str):
-            method = "Kociemba"
+            method = "CFOP"
 
         if method not in ALLOWED_METHODS:
             write_json(

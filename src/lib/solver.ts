@@ -1,6 +1,8 @@
 import { RecommendedSolution } from "@/lib/scramble";
 import { API_BASE_URL } from "@/lib/api";
 
+export type SolverMethod = "CFOP" | "Kociemba" | "Beginner";
+
 type SolverApiResponse = {
   method: string;
   algorithm: string;
@@ -20,6 +22,7 @@ function getSolverEndpoint() {
 
 export async function fetchSolutionForScramble(
   scramble: string,
+  method: SolverMethod = "CFOP",
   signal?: AbortSignal
 ): Promise<RecommendedSolution> {
   const response = await fetch(getSolverEndpoint(), {
@@ -27,7 +30,7 @@ export async function fetchSolutionForScramble(
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ scramble, method: "Kociemba" }),
+    body: JSON.stringify({ scramble, method }),
     signal,
   });
 

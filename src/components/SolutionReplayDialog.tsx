@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
+  Loader2,
   Pause,
   Play,
   RotateCcw,
@@ -17,7 +18,8 @@ import {
 import MiniCube from "@/components/MiniCube";
 import ThreeCubePlayer from "@/components/ThreeCubePlayer";
 import { invertAlgorithm, parseAlgorithm } from "@/lib/cube-visualizer";
-import { formatTime, Solve } from "@/lib/scramble";
+import { formatTime, RecommendedSolution, Solve } from "@/lib/scramble";
+import { fetchSolutionForScramble, SolverMethod } from "@/lib/solver";
 import { cn } from "@/lib/utils";
 
 interface SolutionReplayDialogProps {
@@ -27,6 +29,10 @@ interface SolutionReplayDialogProps {
 }
 
 const PLAYBACK_INTERVAL_MS = 800;
+type ReplayMethod = Extract<SolverMethod, "CFOP" | "Kociemba">;
+type SolutionFetchState = "idle" | "loading" | "ready" | "error";
+const PRIMARY_REPLAY_METHOD: ReplayMethod = "CFOP";
+const SECONDARY_REPLAY_METHOD: ReplayMethod = "Kociemba";
 
 interface MoveStripProps {
   title: string;
@@ -71,27 +77,158 @@ const SolutionReplayDialog = ({
   solve,
   onOpenChange,
 }: SolutionReplayDialogProps) => {
-  const solution = solve?.recommendedSolution;
+  const [activeMethod, setActiveMethod] =
+    useState<ReplayMethod>(PRIMARY_REPLAY_METHOD);
+  const [cfopSolution, setCfopSolution] = useState<RecommendedSolution>();
+  const [cfopState, setCfopState] = useState<SolutionFetchState>("idle");
+  const [cfopError, setCfopError] = useState<string>();
+  const [kociembaSolution, setKociembaSolution] =
+    useState<RecommendedSolution>();
+  const [kociembaState, setKociembaState] = useState<SolutionFetchState>("idle");
+  const [kociembaError, setKociembaError] = useState<string>();
+  const [step, setStep] = useState(0);
+  const [playing, setPlaying] = useState(false);
+ 
+  const methodOrder: ReplayMethod[] = [
+    PRIMARY_REPLAY_METHOD,
+    SECONDARY_REPLAY_METHOD,
+  ];
+  const activeMethodIndex = Math.max(0, methodOrder.indexOf(activeMethod));
+  const canGoMethodBackward = activeMethodIndex > 0;
+  const canGoMethodForward = activeMethodIndex < methodOrder.length - 1;
+ 
+  const activeSolution =
+    activeMethod === PRIMARY_REPLAY_METHOD ? cfopSolution : kociembaSolution;
+  const activeSolutionState =
+    activeMethod === PRIMARY_REPLAY_METHOD ? cfopState : kociembaState;
+  const activeSolutionError =
+    activeMethod === PRIMARY_REPLAY_METHOD ? cfopError : kociembaError;
+ 
+  useEffect(() => {
+    if (!open || !solve) {
+      setActiveMethod(PRIMARY_REPLAY_METHOD);
+      setCfopSolution(undefined);
+      setCfopState("idle");
+      setCfopError(undefined);
+      setKociembaSolution(undefined);
+      setKociembaState("idle");
+      setKociembaError(undefined);
+      return;
+    }
+ 
+    setActiveMethod(PRIMARY_REPLAY_METHOD);
+    setCfopSolution(undefined);
+    setCfopState("idle");
+    setCfopError(undefined);
+    setKociembaSolution(undefined);
+    setKociembaState("idle");
+    setKociembaError(undefined);
+ 
+    const storedSolution = solve.recommendedSolution;
+    if (!storedSolution) return;
+ 
+    if (storedSolution.method === PRIMARY_REPLAY_METHOD) {
+      setCfopSolution(storedSolution);
+      setCfopState("ready");
+      return;
+    }
+ 
+    if (storedSolution.method === SECONDARY_REPLAY_METHOD) {
+      setKociembaSolution(storedSolution);
+      setKociembaState("ready");
+    }
+  }, [open, solve?.id, solve?.recommendedSolution]);
+ 
+  useEffect(() => {
+    if (!open || !solve?.scramble) return;
+    if (solve.recommendedSolution?.method === PRIMARY_REPLAY_METHOD) return;
+    if (cfopSolution) return;
+ 
+    const controller = new AbortController();
+    setCfopState("loading");
+    setCfopError(undefined);
+ 
+    fetchSolutionForScramble(
+      solve.scramble,
+      PRIMARY_REPLAY_METHOD,
+      controller.signal
+    )
+      .then((solution) => {
+        setCfopSolution(solution);
+        setCfopState("ready");
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setCfopState("error");
+        setCfopError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load CFOP solution."
+        );
+      });
+ 
+    return () => controller.abort();
+  }, [
+    cfopSolution,
+    open,
+    solve?.id,
+    solve?.recommendedSolution?.method,
+    solve?.scramble,
+  ]);
+ 
+  useEffect(() => {
+    if (
+      !open ||
+      activeMethod !== SECONDARY_REPLAY_METHOD ||
+      !solve?.scramble ||
+      kociembaSolution
+    ) {
+      return;
+    }
+ 
+    const controller = new AbortController();
+    setKociembaState("loading");
+    setKociembaError(undefined);
+ 
+    fetchSolutionForScramble(
+      solve.scramble,
+      SECONDARY_REPLAY_METHOD,
+      controller.signal
+    )
+      .then((solution) => {
+        setKociembaSolution(solution);
+        setKociembaState("ready");
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setKociembaState("error");
+        setKociembaError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load Kociemba solution."
+        );
+      });
+ 
+    return () => controller.abort();
+  }, [activeMethod, kociembaSolution, open, solve?.id, solve?.scramble]);
+ 
   const moves = useMemo(
-    () => parseAlgorithm(solution?.algorithm ?? ""),
-    [solution?.algorithm]
+    () => parseAlgorithm(activeSolution?.algorithm ?? ""),
+    [activeSolution?.algorithm]
   );
   const scrambleMoves = useMemo(
     () => parseAlgorithm(solve?.scramble ?? ""),
     [solve?.scramble]
   );
   const returnToPreviousStateMoves = useMemo(
-    () => invertAlgorithm(moves),
-    [moves]
+    () => invertAlgorithm(scrambleMoves),
+    [scrambleMoves]
   );
   const states = useMemo(() => {
-    if (!solution?.states?.length) return [];
-    if (solution.states.length !== moves.length + 1) return [];
-    return solution.states;
-  }, [moves.length, solution?.states]);
-
-  const [step, setStep] = useState(0);
-  const [playing, setPlaying] = useState(false);
+    if (!activeSolution?.states?.length) return [];
+    if (activeSolution.states.length !== moves.length + 1) return [];
+    return activeSolution.states;
+  }, [activeSolution?.states, moves.length]);
 
   const maxStep = Math.max(0, states.length - 1);
 
@@ -102,7 +239,7 @@ const SolutionReplayDialog = ({
     }
     setStep(0);
     setPlaying(false);
-  }, [open, solution?.generatedAt]);
+  }, [activeMethod, activeSolution?.generatedAt, open]);
 
   useEffect(() => {
     if (!playing || !open || maxStep === 0) return;
@@ -122,38 +259,109 @@ const SolutionReplayDialog = ({
   }, [maxStep, step]);
 
   const currentMove = step === 0 ? "Start" : moves[step - 1];
+ 
+  const showPreviousMethod = () => {
+    if (!canGoMethodBackward) return;
+    setActiveMethod(methodOrder[activeMethodIndex - 1]);
+  };
+ 
+  const showNextMethod = () => {
+    if (!canGoMethodForward) return;
+    setActiveMethod(methodOrder[activeMethodIndex + 1]);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[1260px] max-h-[94vh] max-w-[96vw] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="font-mono-timer">
-            Optimal Replay
+            Solution Replay
           </DialogTitle>
           <DialogDescription>
             {solve ? `Solve: ${formatTime(solve.time)}` : "Replay"}
-            {solution ? ` | ${solution.method} | ${solution.moveCount} moves` : ""}
+            {activeSolution
+              ? ` | ${activeSolution.method} | ${activeSolution.moveCount} moves`
+              : ` | ${activeMethod}`}
           </DialogDescription>
         </DialogHeader>
 
-        {!solution && (
+        <div className="flex items-center justify-between rounded-lg border border-border bg-card/40 px-3 py-2">
+          <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Method
+          </span>
+          <div className="inline-flex items-center gap-1">
+            <button
+              onClick={showPreviousMethod}
+              disabled={!canGoMethodBackward}
+              className={cn(
+                "rounded-md border border-border bg-card px-2 py-1 text-xs transition-colors",
+                canGoMethodBackward
+                  ? "hover:bg-accent/20"
+                  : "cursor-not-allowed opacity-50"
+              )}
+              title="Previous method"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="min-w-[7.5rem] text-center font-mono-timer text-sm">
+              {activeMethod}
+            </span>
+            <button
+              onClick={showNextMethod}
+              disabled={!canGoMethodForward}
+              className={cn(
+                "rounded-md border border-border bg-card px-2 py-1 text-xs transition-colors",
+                canGoMethodForward
+                  ? "hover:bg-accent/20"
+                  : "cursor-not-allowed opacity-50"
+              )}
+              title="Next method"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+
+        {activeSolutionState === "idle" && (
           <div className="rounded-lg border border-border bg-card/40 p-4 text-sm text-muted-foreground">
-            No solution attached to this solve.
+            Preparing {activeMethod} solution.
           </div>
         )}
 
-        {solution && states.length === 0 && (
+        {activeSolutionState === "loading" && (
+          <div className="rounded-lg border border-border bg-card/40 p-4 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-2">
+              <Loader2 size={14} className="animate-spin" />
+              Loading {activeMethod} solution...
+            </span>
+          </div>
+        )}
+
+        {activeSolutionState === "error" && (
+          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+            Unable to load {activeMethod} solution.
+            {activeSolutionError ? ` ${activeSolutionError}` : ""}
+          </div>
+        )}
+
+        {activeSolutionState === "ready" && !activeSolution && (
+          <div className="rounded-lg border border-border bg-card/40 p-4 text-sm text-muted-foreground">
+            No {activeMethod} solution attached to this solve.
+          </div>
+        )}
+
+        {activeSolutionState === "ready" && activeSolution && states.length === 0 && (
           <div className="rounded-lg border border-border bg-card/40 p-4 text-sm text-muted-foreground">
             This solve only has an algorithm string. New solves will include full
             visual replay states.
           </div>
         )}
 
-        {solution && states.length > 0 && (
+        {activeSolutionState === "ready" && activeSolution && states.length > 0 && (
           <div className="space-y-4">
             <ThreeCubePlayer
               scramble={solve?.scramble ?? ""}
-              solutionAlgorithm={solution.algorithm}
+              solutionAlgorithm={activeSolution.algorithm}
               targetStep={step}
             />
 
@@ -208,7 +416,7 @@ const SolutionReplayDialog = ({
 
               <div className="mt-3 grid gap-2 lg:grid-cols-3">
                 <MoveStrip
-                  title="Optimal Solve"
+                  title={`${activeMethod} Solve`}
                   moves={moves}
                   activeIndex={step === 0 ? undefined : step - 1}
                 />
