@@ -29,10 +29,11 @@ interface SolutionReplayDialogProps {
 }
 
 const PLAYBACK_INTERVAL_MS = 800;
-type ReplayMethod = Extract<SolverMethod, "CFOP" | "Kociemba">;
+type ReplayMethod = Extract<SolverMethod, "CFOP" | "Kociemba" | "Beginner">;
 type SolutionFetchState = "idle" | "loading" | "ready" | "error";
 const PRIMARY_REPLAY_METHOD: ReplayMethod = "CFOP";
 const SECONDARY_REPLAY_METHOD: ReplayMethod = "Kociemba";
+const TERTIARY_REPLAY_METHOD: ReplayMethod = "Beginner";
 
 interface MoveStripProps {
   title: string;
@@ -86,24 +87,42 @@ const SolutionReplayDialog = ({
     useState<RecommendedSolution>();
   const [kociembaState, setKociembaState] = useState<SolutionFetchState>("idle");
   const [kociembaError, setKociembaError] = useState<string>();
+  const [beginnerSolution, setBeginnerSolution] =
+    useState<RecommendedSolution>();
+  const [beginnerState, setBeginnerState] = useState<SolutionFetchState>("idle");
+  const [beginnerError, setBeginnerError] = useState<string>();
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
  
   const methodOrder: ReplayMethod[] = [
     PRIMARY_REPLAY_METHOD,
     SECONDARY_REPLAY_METHOD,
+    TERTIARY_REPLAY_METHOD,
   ];
   const activeMethodIndex = Math.max(0, methodOrder.indexOf(activeMethod));
   const canGoMethodBackward = activeMethodIndex > 0;
   const canGoMethodForward = activeMethodIndex < methodOrder.length - 1;
+  const solutionsByMethod: Record<ReplayMethod, RecommendedSolution | undefined> = {
+    CFOP: cfopSolution,
+    Kociemba: kociembaSolution,
+    Beginner: beginnerSolution,
+  };
+  const statesByMethod: Record<ReplayMethod, SolutionFetchState> = {
+    CFOP: cfopState,
+    Kociemba: kociembaState,
+    Beginner: beginnerState,
+  };
+  const errorsByMethod: Record<ReplayMethod, string | undefined> = {
+    CFOP: cfopError,
+    Kociemba: kociembaError,
+    Beginner: beginnerError,
+  };
+
+  const activeSolution = solutionsByMethod[activeMethod];
+  const activeSolutionState = statesByMethod[activeMethod];
+  const activeSolutionError = errorsByMethod[activeMethod];
  
-  const activeSolution =
-    activeMethod === PRIMARY_REPLAY_METHOD ? cfopSolution : kociembaSolution;
-  const activeSolutionState =
-    activeMethod === PRIMARY_REPLAY_METHOD ? cfopState : kociembaState;
-  const activeSolutionError =
-    activeMethod === PRIMARY_REPLAY_METHOD ? cfopError : kociembaError;
- 
+  // 15.3 Reset dialog state when solve/method context changes.
   useEffect(() => {
     if (!open || !solve) {
       setActiveMethod(PRIMARY_REPLAY_METHOD);
@@ -113,6 +132,9 @@ const SolutionReplayDialog = ({
       setKociembaSolution(undefined);
       setKociembaState("idle");
       setKociembaError(undefined);
+      setBeginnerSolution(undefined);
+      setBeginnerState("idle");
+      setBeginnerError(undefined);
       return;
     }
  
@@ -123,6 +145,9 @@ const SolutionReplayDialog = ({
     setKociembaSolution(undefined);
     setKociembaState("idle");
     setKociembaError(undefined);
+    setBeginnerSolution(undefined);
+    setBeginnerState("idle");
+    setBeginnerError(undefined);
  
     const storedSolution = solve.recommendedSolution;
     if (!storedSolution) return;
@@ -136,9 +161,16 @@ const SolutionReplayDialog = ({
     if (storedSolution.method === SECONDARY_REPLAY_METHOD) {
       setKociembaSolution(storedSolution);
       setKociembaState("ready");
+      return;
+    }
+
+    if (storedSolution.method === TERTIARY_REPLAY_METHOD) {
+      setBeginnerSolution(storedSolution);
+      setBeginnerState("ready");
     }
   }, [open, solve?.id, solve?.recommendedSolution]);
  
+  // 15.4 Ensure primary method solution is available for replay.
   useEffect(() => {
     if (!open || !solve?.scramble) return;
     if (solve.recommendedSolution?.method === PRIMARY_REPLAY_METHOD) return;
@@ -179,38 +211,56 @@ const SolutionReplayDialog = ({
   useEffect(() => {
     if (
       !open ||
-      activeMethod !== SECONDARY_REPLAY_METHOD ||
-      !solve?.scramble ||
-      kociembaSolution
+      activeMethod === PRIMARY_REPLAY_METHOD ||
+      !solve?.scramble
     ) {
       return;
     }
+
+    let existingSolution: RecommendedSolution | undefined;
+    let setState: (state: SolutionFetchState) => void;
+    let setError: (message: string | undefined) => void;
+    let setSolution: (solution: RecommendedSolution | undefined) => void;
+
+    if (activeMethod === SECONDARY_REPLAY_METHOD) {
+      existingSolution = kociembaSolution;
+      setState = setKociembaState;
+      setError = setKociembaError;
+      setSolution = setKociembaSolution;
+    } else {
+      existingSolution = beginnerSolution;
+      setState = setBeginnerState;
+      setError = setBeginnerError;
+      setSolution = setBeginnerSolution;
+    }
+
+    if (existingSolution) return;
  
     const controller = new AbortController();
-    setKociembaState("loading");
-    setKociembaError(undefined);
+    setState("loading");
+    setError(undefined);
  
     fetchSolutionForScramble(
       solve.scramble,
-      SECONDARY_REPLAY_METHOD,
+      activeMethod,
       controller.signal
     )
       .then((solution) => {
-        setKociembaSolution(solution);
-        setKociembaState("ready");
+        setSolution(solution);
+        setState("ready");
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
-        setKociembaState("error");
-        setKociembaError(
+        setState("error");
+        setError(
           error instanceof Error
             ? error.message
-            : "Unable to load Kociemba solution."
+            : `Unable to load ${activeMethod} solution.`
         );
       });
  
     return () => controller.abort();
-  }, [activeMethod, kociembaSolution, open, solve?.id, solve?.scramble]);
+  }, [activeMethod, beginnerSolution, kociembaSolution, open, solve?.id, solve?.scramble]);
  
   const moves = useMemo(
     () => parseAlgorithm(activeSolution?.algorithm ?? ""),

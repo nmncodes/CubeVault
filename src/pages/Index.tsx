@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, CSSProperties } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   CircleUserRound,
   Cloud,
@@ -24,6 +24,7 @@ import Timer from "@/components/Timer";
 import SolveList from "@/components/SolveList";
 import SolutionReplayDialog from "@/components/SolutionReplayDialog";
 import SessionDashboard from "@/components/SessionDashboard";
+import ThemeToggle from "@/components/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,40 +90,6 @@ const Index = () => {
     "#facc15",
     "#f97316",
   ];
-
-  const vaultThemeVars: CSSProperties = {
-    "--background": "220 18% 95%",
-    "--foreground": "222 22% 9%",
-    "--card": "0 0% 100%",
-    "--card-foreground": "222 22% 9%",
-    "--popover": "0 0% 100%",
-    "--popover-foreground": "222 22% 9%",
-    "--primary": "0 84% 60%",
-    "--primary-foreground": "0 0% 100%",
-    "--secondary": "142 71% 45%",
-    "--secondary-foreground": "0 0% 100%",
-    "--muted": "220 14% 92%",
-    "--muted-foreground": "220 11% 36%",
-    "--accent": "217 91% 60%",
-    "--accent-foreground": "0 0% 100%",
-    "--destructive": "24 95% 55%",
-    "--destructive-foreground": "0 0% 100%",
-    "--border": "222 15% 20%",
-    "--input": "222 15% 20%",
-    "--ring": "48 98% 55%",
-    "--timer-ready": "142 71% 45%",
-    "--timer-running": "0 84% 60%",
-    "--timer-idle": "222 22% 9%",
-    "--sidebar-background": "220 24% 97%",
-    "--sidebar-foreground": "222 22% 9%",
-    "--sidebar-primary": "0 84% 60%",
-    "--sidebar-primary-foreground": "0 0% 100%",
-    "--sidebar-accent": "217 91% 60%",
-    "--sidebar-accent-foreground": "0 0% 100%",
-    "--sidebar-border": "222 14% 24%",
-    "--sidebar-ring": "48 98% 55%",
-    "--font-serif-color": "#141922",
-  } as CSSProperties;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -265,10 +232,7 @@ const Index = () => {
   ]);
 
   return (
-    <div
-      style={vaultThemeVars}
-      className="relative min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#f7f8fa_0%,#eceff3_100%)] text-[hsl(var(--foreground))] flex flex-col md:flex-row"
-    >
+    <div className="relative min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#f7f8fa_0%,#eceff3_100%)] text-[hsl(var(--foreground))] dark:bg-[linear-gradient(180deg,#0c1220_0%,#111827_100%)] flex flex-col md:flex-row">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-[linear-gradient(90deg,#ef4444_0%,#22c55e_20%,#3b82f6_40%,#f8fafc_60%,#facc15_80%,#f97316_100%)]"
@@ -334,15 +298,18 @@ const Index = () => {
                 </Badge> */}
               </div>
             </div>
-            <a href="https://github.com/nmncodes/CubeVault" target="_blank" rel="noopener noreferrer">
-              <Button
-                variant="outline"
-                className="gap-2 border-black bg-card text-foreground hover:bg-black hover:text-white"
-              >
-                <Github size={14} />
-                Repository
-              </Button>
-            </a>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <a href="https://github.com/nmncodes/CubeVault" target="_blank" rel="noopener noreferrer">
+                <Button
+                  variant="outline"
+                  className="gap-2 border-foreground/70 bg-card text-foreground hover:bg-foreground hover:text-background"
+                >
+                  <Github size={14} />
+                  Repository
+                </Button>
+              </a>
+            </div>
           </div>
         </header>
 
@@ -425,8 +392,8 @@ const Index = () => {
                   <div className="mb-1.5 inline-flex h-7 w-7 items-center justify-center rounded-md border border-black/20 bg-white/70 text-foreground">
                     <Sigma size={14} />
                   </div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground">CFOP + Kociemba</p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Get solve paths by both CFOP and Kociemba(solves any scramble in least moves possible)</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground">Beginner + CFOP + Kociemba</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Compare beginner-friendly, CFOP, and Kociemba solution paths for every scramble.</p>
                 </div>
               </div>
 {/* 

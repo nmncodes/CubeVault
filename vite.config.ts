@@ -302,7 +302,6 @@ function rubikSolverApi(): Plugin {
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // Ensure server-side middleware can read values from .env files and folders.
   Object.assign(process.env, loadEnv(mode, process.cwd(), ""));
 
   return {

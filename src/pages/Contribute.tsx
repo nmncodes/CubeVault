@@ -1,11 +1,12 @@
 import { ArrowLeft, Github, Sparkles, Wrench } from "lucide-react";
 import { Link } from "react-router-dom";
+import ThemeToggle from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const Contribute = () => {
   return (
-    <div className="min-h-screen bg-[radial-gradient(120%_100%_at_20%_0%,#1e293b_0%,hsl(var(--background))_55%)] px-4 py-8 md:px-8">
+    <div className="min-h-screen bg-[radial-gradient(120%_100%_at_20%_0%,#e2e8f0_0%,hsl(var(--background))_55%)] px-4 py-8 dark:bg-[radial-gradient(120%_100%_at_20%_0%,#1e293b_0%,hsl(var(--background))_55%)] md:px-8">
       <div className="mx-auto max-w-5xl">
         <div className="mb-6 flex items-center justify-between">
           <Link to="/">
@@ -14,9 +15,12 @@ const Contribute = () => {
               Back To Timer
             </Button>
           </Link>
-          <span className="font-mono-timer text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            CubeVault Contributor Hub
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="hidden font-mono-timer text-xs uppercase tracking-[0.18em] text-muted-foreground sm:inline">
+              CubeVault Contributor Hub
+            </span>
+            <ThemeToggle />
+          </div>
         </div>
 
         <Card className="border-border/60 bg-card/70 backdrop-blur">
