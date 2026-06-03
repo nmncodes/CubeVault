@@ -56,7 +56,7 @@ function getStorageBadge(storageMode: ReturnType<typeof useSolveStore>["storageM
     default:
       return {
         label: "Guest Mode",
-        icon: CloudOff,
+        icon: CircleUserRound,
         variant: "outline" as const,
       };
   }

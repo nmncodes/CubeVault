@@ -14,8 +14,8 @@ export type AuthUser = {
 
 export type AuthSession = {
   user?: AuthUser;
-  expires: string;
-} | null;
+  expires: string ;
+} | null; 
 
 export type AuthContextValue = {
   session: AuthSession;

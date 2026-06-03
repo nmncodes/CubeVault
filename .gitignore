@@ -60,3 +60,16 @@ bun.lockb
 .vercel
 .netlify
 
+#LM files
+architecture.md
+backend.md
+frontend.md
+database.md
+decisions.md
+flows.md
+glossary.md
+overview.md
+scaling.md
+senior.md
+tech_stack.md 
+REWRITE.md
