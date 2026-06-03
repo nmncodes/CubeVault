@@ -9,7 +9,7 @@ import { readJsonBody, writeJson } from "./server/http.ts";
 
 const API_PATH = "/api/solve";
 const SOLVER_SCRIPT_PATH = path.resolve(__dirname, "solver", "solve_scramble.py");
-const ALLOWED_METHODS = new Set(["Kociemba", "CFOP", "Beginner"]);
+const ALLOWED_METHODS = new Set(["Kociemba", "CFOP", "Beginner", "Thistlethwaite"]);
 
 type SolverResponse = {
   method: string;
