@@ -1,7 +1,7 @@
 import { RecommendedSolution } from "@/lib/scramble";
 import { API_BASE_URL } from "@/lib/api";
 
-export type SolverMethod = "CFOP" | "Kociemba" | "Beginner";
+export type SolverMethod = "CFOP" | "Kociemba" | "Beginner" | "Thistlethwaite";
 
 type SolverApiResponse = {
   method: string;

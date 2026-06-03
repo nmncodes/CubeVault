@@ -31,7 +31,7 @@ from rubik_solver.Cubie import Cube  # type: ignore  # noqa: E402
 from rubik_solver.Move import Move  # type: ignore  # noqa: E402
 
 MOVE_PATTERN = re.compile(r"^[FBRLUD](?:2|')?$")
-ALLOWED_METHODS = {"Kociemba", "CFOP", "Beginner"}
+ALLOWED_METHODS = {"Kociemba", "CFOP", "Beginner", "Thistlethwaite"}
 
 
 def normalize_tokens(scramble: str) -> list[str]:
