@@ -140,7 +140,7 @@ def solve_with_thistlethwaite(tokens: list[str]) -> list[str]:
             [str(binary), " ".join(tokens)],
             capture_output=True,
             text=True,
-            timeout=300,
+            timeout=600,
             check=False,
         )
     finally:
