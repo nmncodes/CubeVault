@@ -79,6 +79,13 @@ function runSolverWithTarget(
     let stdout = "";
     let stderr = "";
 
+    console.log(
+  "Trying:",
+  target.label,
+  target.command,
+  [...target.preArgs, SOLVER_SCRIPT_PATH, scramble, method]
+  );
+
     child.stdout.on("data", (data: Buffer) => {
       stdout += data.toString("utf8");
     });
@@ -87,10 +94,11 @@ function runSolverWithTarget(
       stderr += data.toString("utf8");
     });
 
+    const timeoutMs = method === "Thistlethwaite" ? 600_000 : 15_000;
     const timeoutId = setTimeout(() => {
       child.kill("SIGTERM");
       reject(new Error(`Solver timed out using ${target.label}.`));
-    }, 15_000);
+    }, timeoutMs);
 
     child.on("error", (error) => {
       clearTimeout(timeoutId);

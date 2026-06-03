@@ -392,8 +392,8 @@ const Index = () => {
                   <div className="mb-1.5 inline-flex h-7 w-7 items-center justify-center rounded-md border border-black/20 bg-white/70 text-foreground">
                     <Sigma size={14} />
                   </div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground">Beginner + CFOP + Kociemba</p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Compare beginner-friendly, CFOP, and Kociemba solution paths for every scramble.</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground">Beginner + CFOP + Kociemba + Thistlethwaite</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Compare beginner-friendly, CFOP, Kociemba, and Thistlethwaite solution paths for every scramble.</p>
                 </div>
               </div>
 {/* 

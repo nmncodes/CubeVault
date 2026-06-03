@@ -29,11 +29,12 @@ interface SolutionReplayDialogProps {
 }
 
 const PLAYBACK_INTERVAL_MS = 800;
-type ReplayMethod = Extract<SolverMethod, "CFOP" | "Kociemba" | "Beginner">;
+type ReplayMethod = Extract<SolverMethod, "CFOP" | "Kociemba" | "Beginner" | "Thistlethwaite">;
 type SolutionFetchState = "idle" | "loading" | "ready" | "error";
 const PRIMARY_REPLAY_METHOD: ReplayMethod = "CFOP";
 const SECONDARY_REPLAY_METHOD: ReplayMethod = "Kociemba";
 const TERTIARY_REPLAY_METHOD: ReplayMethod = "Beginner";
+const QUATERNARY_REPLAY_METHOD: ReplayMethod = "Thistlethwaite";
 
 interface MoveStripProps {
   title: string;
@@ -91,6 +92,10 @@ const SolutionReplayDialog = ({
     useState<RecommendedSolution>();
   const [beginnerState, setBeginnerState] = useState<SolutionFetchState>("idle");
   const [beginnerError, setBeginnerError] = useState<string>();
+  const [thistleSolution, setThistleSolution] =
+    useState<RecommendedSolution>();
+  const [thistleState, setThistleState] = useState<SolutionFetchState>("idle");
+  const [thistleError, setThistleError] = useState<string>();
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
  
@@ -98,6 +103,7 @@ const SolutionReplayDialog = ({
     PRIMARY_REPLAY_METHOD,
     SECONDARY_REPLAY_METHOD,
     TERTIARY_REPLAY_METHOD,
+    QUATERNARY_REPLAY_METHOD,
   ];
   const activeMethodIndex = Math.max(0, methodOrder.indexOf(activeMethod));
   const canGoMethodBackward = activeMethodIndex > 0;
@@ -106,21 +112,28 @@ const SolutionReplayDialog = ({
     CFOP: cfopSolution,
     Kociemba: kociembaSolution,
     Beginner: beginnerSolution,
+    Thistlethwaite: thistleSolution,
   };
   const statesByMethod: Record<ReplayMethod, SolutionFetchState> = {
     CFOP: cfopState,
     Kociemba: kociembaState,
     Beginner: beginnerState,
+    Thistlethwaite: thistleState,
   };
   const errorsByMethod: Record<ReplayMethod, string | undefined> = {
     CFOP: cfopError,
     Kociemba: kociembaError,
     Beginner: beginnerError,
+    Thistlethwaite: thistleError,
   };
 
   const activeSolution = solutionsByMethod[activeMethod];
   const activeSolutionState = statesByMethod[activeMethod];
   const activeSolutionError = errorsByMethod[activeMethod];
+  const recommendedSolutionKey =
+    solve?.recommendedSolution
+      ? `${solve.recommendedSolution.method}|${solve.recommendedSolution.generatedAt ?? ""}|${solve.recommendedSolution.algorithm}`
+      : "";
  
   // 15.3 Reset dialog state when solve/method context changes.
   useEffect(() => {
@@ -135,6 +148,9 @@ const SolutionReplayDialog = ({
       setBeginnerSolution(undefined);
       setBeginnerState("idle");
       setBeginnerError(undefined);
+      setThistleSolution(undefined);
+      setThistleState("idle");
+      setThistleError(undefined);
       return;
     }
  
@@ -148,6 +164,9 @@ const SolutionReplayDialog = ({
     setBeginnerSolution(undefined);
     setBeginnerState("idle");
     setBeginnerError(undefined);
+    setThistleSolution(undefined);
+    setThistleState("idle");
+    setThistleError(undefined);
  
     const storedSolution = solve.recommendedSolution;
     if (!storedSolution) return;
@@ -167,8 +186,14 @@ const SolutionReplayDialog = ({
     if (storedSolution.method === TERTIARY_REPLAY_METHOD) {
       setBeginnerSolution(storedSolution);
       setBeginnerState("ready");
+      return;
     }
-  }, [open, solve?.id, solve?.recommendedSolution]);
+
+    if (storedSolution.method === QUATERNARY_REPLAY_METHOD) {
+      setThistleSolution(storedSolution);
+      setThistleState("ready");
+    }
+  }, [open, solve?.id, recommendedSolutionKey]);
  
   // 15.4 Ensure primary method solution is available for replay.
   useEffect(() => {
@@ -227,11 +252,16 @@ const SolutionReplayDialog = ({
       setState = setKociembaState;
       setError = setKociembaError;
       setSolution = setKociembaSolution;
-    } else {
+    } else if (activeMethod === TERTIARY_REPLAY_METHOD) {
       existingSolution = beginnerSolution;
       setState = setBeginnerState;
       setError = setBeginnerError;
       setSolution = setBeginnerSolution;
+    } else {
+      existingSolution = thistleSolution;
+      setState = setThistleState;
+      setError = setThistleError;
+      setSolution = setThistleSolution;
     }
 
     if (existingSolution) return;
@@ -260,7 +290,15 @@ const SolutionReplayDialog = ({
       });
  
     return () => controller.abort();
-  }, [activeMethod, beginnerSolution, kociembaSolution, open, solve?.id, solve?.scramble]);
+  }, [
+    activeMethod,
+    beginnerSolution,
+    kociembaSolution,
+    open,
+    solve?.id,
+    solve?.scramble,
+    thistleSolution,
+  ]);
  
   const moves = useMemo(
     () => parseAlgorithm(activeSolution?.algorithm ?? ""),
@@ -372,17 +410,18 @@ const SolutionReplayDialog = ({
           </div>
         </div>
 
-        {activeSolutionState === "idle" && (
-          <div className="rounded-lg border border-border bg-card/40 p-4 text-sm text-muted-foreground">
-            Preparing {activeMethod} solution.
-          </div>
-        )}
-
         {activeSolutionState === "loading" && (
-          <div className="rounded-lg border border-border bg-card/40 p-4 text-sm text-muted-foreground">
-            <span className="inline-flex items-center gap-2">
-              <Loader2 size={14} className="animate-spin" />
-              Loading {activeMethod} solution...
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-foreground">
+            <span className="flex flex-col gap-1">
+              <span className="inline-flex items-center gap-2 font-semibold">
+                <Loader2 size={16} className="animate-spin text-primary" />
+                Finding {activeMethod} path...
+              </span>
+              {activeMethod === "Thistlethwaite" && (
+                <span className="text-xs text-muted-foreground">
+                  Note: This method is computationally heavy and can take up to 5 minutes on some scrambles.
+                </span>
+              )}
             </span>
           </div>
         )}
@@ -394,90 +433,83 @@ const SolutionReplayDialog = ({
           </div>
         )}
 
-        {activeSolutionState === "ready" && !activeSolution && (
-          <div className="rounded-lg border border-border bg-card/40 p-4 text-sm text-muted-foreground">
-            No {activeMethod} solution attached to this solve.
-          </div>
-        )}
+        <div className="space-y-4">
+          <ThreeCubePlayer
+            scramble={solve?.scramble ?? ""}
+            solutionAlgorithm={activeSolution?.algorithm ?? ""}
+            targetStep={activeSolution ? step : 0}
+          />
 
-        {activeSolutionState === "ready" && activeSolution && states.length === 0 && (
-          <div className="rounded-lg border border-border bg-card/40 p-4 text-sm text-muted-foreground">
-            This solve only has an algorithm string. New solves will include full
-            visual replay states.
-          </div>
-        )}
-
-        {activeSolutionState === "ready" && activeSolution && states.length > 0 && (
-          <div className="space-y-4">
-            <ThreeCubePlayer
-              scramble={solve?.scramble ?? ""}
-              solutionAlgorithm={activeSolution.algorithm}
-              targetStep={step}
-            />
-
-            <div className="rounded-xl border border-border bg-secondary/30 p-4">
-              <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                <button
-                  onClick={() => setStep(0)}
-                  className="rounded-md border border-border bg-card px-2 py-1 text-xs hover:bg-accent/20"
-                >
-                  <RotateCcw size={14} />
-                </button>
-                <button
-                  onClick={() => setStep((current) => Math.max(0, current - 1))}
-                  className="rounded-md border border-border bg-card px-2 py-1 text-xs hover:bg-accent/20"
-                >
-                  <ChevronLeft size={14} />
-                </button>
-                <button
-                  onClick={() => setPlaying((current) => !current)}
-                  className="rounded-md border border-border bg-card px-2 py-1 text-xs hover:bg-accent/20"
-                >
-                  {playing ? <Pause size={14} /> : <Play size={14} />}
-                </button>
-                <button
-                  onClick={() => setPlaying(false)}
-                  className="rounded-md border border-border bg-card px-2 py-1 text-xs hover:bg-accent/20"
-                >
-                  <Square size={14} />
-                </button>
-                <button
-                  onClick={() =>
-                    setStep((current) => Math.min(maxStep, current + 1))
-                  }
-                  className="rounded-md border border-border bg-card px-2 py-1 text-xs hover:bg-accent/20"
-                >
-                  <ChevronRight size={14} />
-                </button>
-                <div className="ml-1 min-w-[220px] flex-1">
-                  <input
-                    type="range"
-                    min={0}
-                    max={maxStep}
-                    value={step}
-                    onChange={(event) => setStep(Number(event.target.value))}
-                    className="h-2 w-full accent-primary"
-                  />
-                </div>
-                <span className="shrink-0 font-mono-timer text-sm text-muted-foreground">
-                  Step {step}/{maxStep} | {currentMove}
-                </span>
-              </div>
-
-              <div className="mt-3 grid gap-2 lg:grid-cols-3">
-                <MoveStrip
-                  title={`${activeMethod} Solve`}
-                  moves={moves}
-                  activeIndex={step === 0 ? undefined : step - 1}
-                />
-                <MoveStrip title="Original Scramble" moves={scrambleMoves} />
-                <MoveStrip
-                  title="Back To Previous State"
-                  moves={returnToPreviousStateMoves}
+          <div className="rounded-xl border border-border bg-secondary/30 p-4">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              <button
+                onClick={() => setStep(0)}
+                disabled={!activeSolution}
+                className="rounded-md border border-border bg-card px-2 py-1 text-xs hover:bg-accent/20 disabled:opacity-50"
+              >
+                <RotateCcw size={14} />
+              </button>
+              <button
+                onClick={() => setStep((current) => Math.max(0, current - 1))}
+                disabled={!activeSolution}
+                className="rounded-md border border-border bg-card px-2 py-1 text-xs hover:bg-accent/20 disabled:opacity-50"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                onClick={() => setPlaying((current) => !current)}
+                disabled={!activeSolution || maxStep === 0}
+                className="rounded-md border border-border bg-card px-2 py-1 text-xs hover:bg-accent/20 disabled:opacity-50"
+              >
+                {playing ? <Pause size={14} /> : <Play size={14} />}
+              </button>
+              <button
+                onClick={() => setPlaying(false)}
+                disabled={!activeSolution}
+                className="rounded-md border border-border bg-card px-2 py-1 text-xs hover:bg-accent/20 disabled:opacity-50"
+              >
+                <Square size={14} />
+              </button>
+              <button
+                onClick={() =>
+                  setStep((current) => Math.min(maxStep, current + 1))
+                }
+                disabled={!activeSolution || step >= maxStep}
+                className="rounded-md border border-border bg-card px-2 py-1 text-xs hover:bg-accent/20 disabled:opacity-50"
+              >
+                <ChevronRight size={14} />
+              </button>
+              <div className="ml-1 min-w-[220px] flex-1">
+                <input
+                  type="range"
+                  min={0}
+                  max={maxStep}
+                  value={step}
+                  disabled={!activeSolution}
+                  onChange={(event) => setStep(Number(event.target.value))}
+                  className="h-2 w-full accent-primary disabled:opacity-50"
                 />
               </div>
+              <span className="shrink-0 font-mono-timer text-sm text-muted-foreground">
+                {activeSolution ? `Step ${step}/${maxStep} | ${currentMove}` : "Scanning scramble..."}
+              </span>
             </div>
 
+            <div className="mt-3 grid gap-2 lg:grid-cols-3">
+              <MoveStrip
+                title={`${activeMethod} Solve`}
+                moves={moves}
+                activeIndex={step === 0 ? undefined : step - 1}
+              />
+              <MoveStrip title="Original Scramble" moves={scrambleMoves} />
+              <MoveStrip
+                title="Back To Previous State"
+                moves={returnToPreviousStateMoves}
+              />
+            </div>
+          </div>
+
+          {activeSolutionState === "ready" && activeSolution && states.length > 0 && (
             <div className="max-h-[54vh] overflow-y-auto rounded-lg border border-border bg-card/20 p-3">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {states.map((state, index) => {
@@ -520,8 +552,21 @@ const SolutionReplayDialog = ({
                 })}
               </div>
             </div>
-          </div>
-        )}
+          )}
+          
+          {activeSolutionState === "ready" && !activeSolution && (
+            <div className="rounded-lg border border-border bg-card/40 p-4 text-sm text-muted-foreground">
+              No {activeMethod} solution attached to this solve.
+            </div>
+          )}
+
+          {activeSolutionState === "ready" && activeSolution && states.length === 0 && (
+            <div className="rounded-lg border border-border bg-card/40 p-4 text-sm text-muted-foreground">
+              This solve only has an algorithm string. New solves will include full
+              visual replay states.
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
