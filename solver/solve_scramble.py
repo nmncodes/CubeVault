@@ -70,6 +70,33 @@ def _thistle_build_output_path() -> Path:
     return THISTLE_BUILD_DIR / f"thistlethwaite.{os.getpid()}.{time.time_ns()}"
 
 
+def _thistle_cache_is_fresh(sources: list[Path]) -> bool:
+    try:
+        return THISTLE_CACHE_BINARY.exists() and THISTLE_CACHE_BINARY.stat().st_mtime >= max(
+            source.stat().st_mtime for source in sources
+        )
+    except OSError:
+        return False
+
+
+def _copy_thistle_runtime_binary() -> Path:
+    runtime_binary = _thistle_build_output_path()
+    last_error: OSError | None = None
+
+    for _ in range(5):
+        try:
+            shutil.copy2(THISTLE_CACHE_BINARY, runtime_binary)
+            return runtime_binary
+        except OSError as exc:
+            last_error = exc
+            time.sleep(0.05)
+
+    raise RuntimeError(
+        "Unable to copy Thistlethwaite solver binary: "
+        + (str(last_error) if last_error else "unknown error")
+    )
+
+
 def normalize_tokens(scramble: str) -> list[str]:
     normalized: list[str] = []
     for raw in scramble.replace(chr(0x2019), "'").split():
@@ -91,14 +118,13 @@ def normalize_tokens(scramble: str) -> list[str]:
 def ensure_thistle_binary() -> Path:
     thistle_sources = [
         THISTLE_SOURCE,
+        Path(__file__).resolve(),
         *PROJECT_ROOT.glob("thistle/*.hpp"),
     ]
-    if THISTLE_CACHE_BINARY.exists() and THISTLE_CACHE_BINARY.stat().st_mtime >= max(
-        source.stat().st_mtime for source in thistle_sources
-    ):
-        runtime_binary = _thistle_build_output_path()
-        shutil.copy2(THISTLE_CACHE_BINARY, runtime_binary)
-        return runtime_binary
+    THISTLE_BUILD_DIR.mkdir(parents=True, exist_ok=True)
+
+    if _thistle_cache_is_fresh(thistle_sources):
+        return _copy_thistle_runtime_binary()
 
     compiler = shutil.which("g++") or shutil.which("clang++")
     if compiler is None:
@@ -106,13 +132,13 @@ def ensure_thistle_binary() -> Path:
             "Thistlethwaite C++ solver needs g++ or clang++ to build."
         )
 
-    THISTLE_BUILD_DIR.mkdir(parents=True, exist_ok=True)
-    build_output = THISTLE_CACHE_BINARY
+    build_output = _thistle_build_output_path()
     completed = subprocess.run(
         [
             compiler,
             "-std=c++17",
-            "-O2",
+            "-O3",
+            "-DNDEBUG",
             str(THISTLE_SOURCE),
             "-o",
             str(build_output),
@@ -123,14 +149,20 @@ def ensure_thistle_binary() -> Path:
     )
 
     if completed.returncode != 0:
+        build_output.unlink(missing_ok=True)
         raise RuntimeError(
             "Failed to build Thistlethwaite C++ solver: "
             + (completed.stderr.strip() or completed.stdout.strip())
         )
 
-    runtime_binary = _thistle_build_output_path()
-    shutil.copy2(THISTLE_CACHE_BINARY, runtime_binary)
-    return runtime_binary
+    try:
+        os.replace(build_output, THISTLE_CACHE_BINARY)
+    except OSError:
+        build_output.unlink(missing_ok=True)
+        if not _thistle_cache_is_fresh(thistle_sources):
+            raise
+
+    return _copy_thistle_runtime_binary()
 
 
 def solve_with_thistlethwaite(tokens: list[str]) -> list[str]:

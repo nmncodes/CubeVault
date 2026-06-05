@@ -79,12 +79,12 @@ function runSolverWithTarget(
     let stdout = "";
     let stderr = "";
 
-    console.log(
-  "Trying:",
-  target.label,
-  target.command,
-  [...target.preArgs, SOLVER_SCRIPT_PATH, scramble, method]
-  );
+  //   console.log(
+  // "Trying:",
+  // target.label,
+  // target.command,
+  // [...target.preArgs, SOLVER_SCRIPT_PATH, scramble, method]
+  // );
 
     child.stdout.on("data", (data: Buffer) => {
       stdout += data.toString("utf8");

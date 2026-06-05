@@ -34,7 +34,7 @@ inline bool allowed_in_phase(const Move& move, Phase phase) {
         case Phase::CornerOrientationAndSlice:
             return move.face != 'F' && move.face != 'B' || move.turns == 2;
         case Phase::PermutationReduction:
-            return move.face != 'R' && move.face != 'L' || move.turns == 2;
+            return move.face == 'U' || move.face == 'D' || move.turns == 2;
         case Phase::HalfTurnSolve:
             return move.turns == 2;
     }

@@ -1,11 +1,11 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <deque>
 #include <stdexcept>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 #include "cube.hpp"
@@ -25,6 +25,16 @@ inline std::vector<Move> all_moves_for_phase(Phase phase) {
         }
     }
     return moves;
+}
+
+inline const std::vector<Move>& phase_moves(Phase phase) {
+    static const std::array<std::vector<Move>, 4> moves = {
+        all_moves_for_phase(Phase::EdgeOrientation),
+        all_moves_for_phase(Phase::CornerOrientationAndSlice),
+        all_moves_for_phase(Phase::PermutationReduction),
+        all_moves_for_phase(Phase::HalfTurnSolve),
+    };
+    return moves[static_cast<int>(phase)];
 }
 
 inline std::uint64_t edge_orientation_coord(const Cube& cube) {
@@ -96,6 +106,12 @@ inline std::uint64_t corner_tetrad_coord(const Cube& cube) {
     return mask;
 }
 
+inline std::uint64_t permutation_reduction_coord(const Cube& cube) {
+    return (((edge_slice_coord(cube) << 8) | corner_tetrad_coord(cube)) << 2) |
+           (static_cast<std::uint64_t>(permutation_parity(cube.cp)) << 1) |
+           static_cast<std::uint64_t>(permutation_parity(cube.ep));
+}
+
 inline std::string full_key(const Cube& cube) {
     std::string key;
     key.reserve(40);
@@ -136,6 +152,9 @@ inline bool phase_goal(const Cube& cube, Phase phase) {
                    }) &&
                    ((slice_mask_coord(cube) & 0x0F00ULL) == 0x0F00ULL);
         case Phase::PermutationReduction:
+            if (!phase_goal(cube, Phase::CornerOrientationAndSlice)) {
+                return false;
+            }
             for (int i = 0; i < 8; ++i) {
                 if (!same_tetrad(cube.cp[i], i)) {
                     return false;
@@ -156,53 +175,248 @@ inline bool same_axis(char a, char b) {
            (a == 'F' || a == 'B') && (b == 'F' || b == 'B');
 }
 
-struct SearchNode {
+static constexpr int kOrbitPermutationCount = 24;
+static constexpr int kHalfTurnKeySpace =
+    kOrbitPermutationCount * kOrbitPermutationCount * kOrbitPermutationCount *
+    kOrbitPermutationCount * kOrbitPermutationCount;
+
+template <std::size_t N>
+inline int orbit_permutation_index(
+    const std::array<std::uint8_t, N>& values,
+    const std::array<int, 4>& positions,
+    const std::array<int, 4>& orbit
+) {
+    static constexpr std::array<int, 4> factorial = {6, 2, 1, 1};
+    std::array<bool, 4> used = {false, false, false, false};
+    int index = 0;
+
+    for (int i = 0; i < 4; ++i) {
+        int rank = -1;
+        for (int j = 0; j < 4; ++j) {
+            if (values[positions[i]] == orbit[j]) {
+                rank = j;
+                break;
+            }
+        }
+        if (rank < 0 || used[rank]) {
+            return -1;
+        }
+
+        int smaller_unused = 0;
+        for (int j = 0; j < rank; ++j) {
+            if (!used[j]) {
+                ++smaller_unused;
+            }
+        }
+
+        index += smaller_unused * factorial[i];
+        used[rank] = true;
+    }
+
+    return index;
+}
+
+inline int half_turn_compact_key(const Cube& cube) {
+    static constexpr std::array<int, 4> corner_a = {0, 2, 5, 7};
+    static constexpr std::array<int, 4> corner_b = {1, 3, 4, 6};
+    static constexpr std::array<int, 4> edge_a = {0, 2, 4, 6};
+    static constexpr std::array<int, 4> edge_b = {1, 3, 5, 7};
+    static constexpr std::array<int, 4> edge_c = {8, 9, 10, 11};
+
+    const int c0 = orbit_permutation_index(cube.cp, corner_a, corner_a);
+    const int c1 = orbit_permutation_index(cube.cp, corner_b, corner_b);
+    const int e0 = orbit_permutation_index(cube.ep, edge_a, edge_a);
+    const int e1 = orbit_permutation_index(cube.ep, edge_b, edge_b);
+    const int e2 = orbit_permutation_index(cube.ep, edge_c, edge_c);
+    if (c0 < 0 || c1 < 0 || e0 < 0 || e1 < 0 || e2 < 0) {
+        return -1;
+    }
+
+    return (((c0 * kOrbitPermutationCount + c1) * kOrbitPermutationCount + e0) *
+                kOrbitPermutationCount +
+            e1) *
+               kOrbitPermutationCount +
+           e2;
+}
+
+struct MoveCandidate {
+    Move move;
     Cube cube;
-    std::vector<Move> path;
+    int lower_bound;
 };
+
+struct HalfTurnSearchNode {
+    Cube cube;
+    int key;
+};
+
+struct HalfTurnParent {
+    int parent_key;
+    Move move;
+    std::uint8_t depth;
+};
+
+class HalfTurnMembershipTable {
+public:
+    HalfTurnMembershipTable() {
+        build();
+    }
+
+    bool contains(const Cube& cube) const {
+        const int key = half_turn_compact_key(cube);
+        return key >= 0 && members_[key] != 0;
+    }
+
+private:
+    std::vector<std::uint8_t> members_;
+
+    void build() {
+        const auto& moves = phase_moves(Phase::HalfTurnSolve);
+        std::deque<Cube> queue;
+        Cube solved;
+
+        members_.assign(kHalfTurnKeySpace, 0);
+        members_[half_turn_compact_key(solved)] = 1;
+        queue.push_back(solved);
+
+        while (!queue.empty()) {
+            const Cube cube = queue.front();
+            queue.pop_front();
+
+            for (const auto& move : moves) {
+                Cube next = cube;
+                next.apply(move);
+
+                const int key = half_turn_compact_key(next);
+                if (key < 0 || members_[key] != 0) {
+                    continue;
+                }
+
+                members_[key] = 1;
+                queue.push_back(next);
+            }
+        }
+    }
+};
+
+inline const HalfTurnMembershipTable& half_turn_membership_table() {
+    static const HalfTurnMembershipTable table;
+    return table;
+}
+
+class PermutationReductionPruningTable {
+public:
+    PermutationReductionPruningTable() {
+        build();
+    }
+
+    int distance(const Cube& cube) const {
+        const auto it = distances_.find(permutation_reduction_coord(cube));
+        if (it == distances_.end()) {
+            return kMissingDistance;
+        }
+        return it->second;
+    }
+
+private:
+    static constexpr int kMaxDepth = 15;
+    static constexpr int kMissingDistance = 99;
+    std::unordered_map<std::uint64_t, std::uint8_t> distances_;
+
+    void build() {
+        const auto& moves = phase_moves(Phase::PermutationReduction);
+        std::deque<Cube> queue;
+        Cube solved;
+
+        distances_.reserve(3000000);
+        distances_.emplace(permutation_reduction_coord(solved), 0);
+        queue.push_back(solved);
+
+        while (!queue.empty()) {
+            const Cube cube = queue.front();
+            queue.pop_front();
+
+            const auto current_distance = distance(cube);
+            if (current_distance >= kMaxDepth) {
+                continue;
+            }
+
+            const auto next_distance = static_cast<std::uint8_t>(current_distance + 1);
+            for (const auto& move : moves) {
+                Cube next = cube;
+                next.apply(move);
+
+                const auto key = permutation_reduction_coord(next);
+                if (distances_.find(key) != distances_.end()) {
+                    continue;
+                }
+
+                distances_.emplace(key, next_distance);
+                queue.push_back(next);
+            }
+        }
+    }
+};
+
+inline const PermutationReductionPruningTable& permutation_reduction_pruning_table() {
+    static const PermutationReductionPruningTable table;
+    return table;
+}
 
 inline std::vector<Move> search_half_turn_phase(const Cube& start, int max_depth) {
     if (start.solved()) {
         return {};
     }
 
-    const auto moves = all_moves_for_phase(Phase::HalfTurnSolve);
-    std::deque<SearchNode> queue;
-    std::unordered_set<std::string> visited;
-    queue.push_back(SearchNode{start, {}});
-    visited.insert(full_key(start));
-    const std::size_t max_visited = 800000;
+    const int start_key = half_turn_compact_key(start);
+    if (start_key < 0) {
+        throw std::runtime_error("No path found for G3->G4 half-turn solve");
+    }
+
+    const auto& moves = phase_moves(Phase::HalfTurnSolve);
+    std::deque<HalfTurnSearchNode> queue;
+    std::unordered_map<int, HalfTurnParent> parents;
+
+    parents.reserve(700000);
+    parents.emplace(start_key, HalfTurnParent{-1, Move{'\0', 0}, 0});
+    queue.push_back(HalfTurnSearchNode{start, start_key});
 
     while (!queue.empty()) {
-        SearchNode node = queue.front();
+        const HalfTurnSearchNode node = queue.front();
         queue.pop_front();
 
-        if (static_cast<int>(node.path.size()) >= max_depth) {
+        const auto parent_it = parents.find(node.key);
+        if (parent_it == parents.end() || parent_it->second.depth >= max_depth) {
             continue;
         }
 
+        const auto next_depth = static_cast<std::uint8_t>(parent_it->second.depth + 1);
         for (const auto& move : moves) {
-            if (!node.path.empty()) {
-                const auto previous = node.path.back();
-                if (previous.face == move.face || same_axis(previous.face, move.face)) {
-                    continue;
-                }
-            }
+            Cube next = node.cube;
+            next.apply(move);
 
-            SearchNode next = node;
-            next.cube.apply(move);
-            next.path.push_back(move);
-            const auto key = full_key(next.cube);
-            if (!visited.insert(key).second) {
+            const int key = half_turn_compact_key(next);
+            if (key < 0 || parents.find(key) != parents.end()) {
                 continue;
             }
-            if (next.cube.solved()) {
-                return next.path;
+
+            parents.emplace(key, HalfTurnParent{node.key, move, next_depth});
+            if (next.solved()) {
+                std::vector<Move> path;
+                int cursor = key;
+                while (cursor != start_key) {
+                    const auto it = parents.find(cursor);
+                    if (it == parents.end() || it->second.parent_key < 0) {
+                        throw std::runtime_error("No path found for G3->G4 half-turn solve");
+                    }
+                    path.push_back(it->second.move);
+                    cursor = it->second.parent_key;
+                }
+                std::reverse(path.begin(), path.end());
+                return path;
             }
-            if (visited.size() > max_visited) {
-                throw std::runtime_error("half-turn subgroup search limit reached");
-            }
-            queue.push_back(next);
+
+            queue.push_back(HalfTurnSearchNode{next, key});
         }
     }
 
@@ -216,12 +430,7 @@ inline bool accepts_phase_goal(const Cube& cube, Phase phase) {
     if (phase != Phase::PermutationReduction) {
         return true;
     }
-    try {
-        (void)search_half_turn_phase(cube, 17);
-        return true;
-    } catch (const std::exception&) {
-        return false;
-    }
+    return half_turn_membership_table().contains(cube);
 }
 
 inline bool dfs_phase(
@@ -229,7 +438,8 @@ inline bool dfs_phase(
     Phase phase,
     int depth_left,
     char previous_face,
-    std::vector<Move>& path
+    std::vector<Move>& path,
+    std::unordered_map<std::string, int>& failed
 ) {
     if (accepts_phase_goal(cube, phase)) {
         return true;
@@ -237,8 +447,54 @@ inline bool dfs_phase(
     if (depth_left == 0) {
         return false;
     }
+    if (phase == Phase::PermutationReduction &&
+        permutation_reduction_pruning_table().distance(cube) > depth_left) {
+        return false;
+    }
 
-    const auto moves = all_moves_for_phase(phase);
+    std::string failed_key = full_key(cube);
+    failed_key.push_back(previous_face);
+    const auto failed_it = failed.find(failed_key);
+    if (failed_it != failed.end() && failed_it->second >= depth_left) {
+        return false;
+    }
+
+    const auto& moves = phase_moves(phase);
+    if (phase == Phase::PermutationReduction) {
+        std::vector<MoveCandidate> candidates;
+        candidates.reserve(moves.size());
+
+        for (const auto& move : moves) {
+            if (previous_face != '\0' &&
+                (previous_face == move.face || same_axis(previous_face, move.face))) {
+                continue;
+            }
+
+            Cube next = cube;
+            next.apply(move);
+            const int lower_bound = permutation_reduction_pruning_table().distance(next);
+            if (lower_bound > depth_left - 1) {
+                continue;
+            }
+            candidates.push_back(MoveCandidate{move, next, lower_bound});
+        }
+
+        std::sort(candidates.begin(), candidates.end(), [](const auto& left, const auto& right) {
+            return left.lower_bound < right.lower_bound;
+        });
+
+        for (const auto& candidate : candidates) {
+            path.push_back(candidate.move);
+            if (dfs_phase(candidate.cube, phase, depth_left - 1, candidate.move.face, path, failed)) {
+                return true;
+            }
+            path.pop_back();
+        }
+
+        failed[std::move(failed_key)] = depth_left;
+        return false;
+    }
+
     for (const auto& move : moves) {
         if (previous_face != '\0' &&
             (previous_face == move.face || same_axis(previous_face, move.face))) {
@@ -247,11 +503,13 @@ inline bool dfs_phase(
         Cube next = cube;
         next.apply(move);
         path.push_back(move);
-        if (dfs_phase(next, phase, depth_left - 1, move.face, path)) {
+        if (dfs_phase(next, phase, depth_left - 1, move.face, path, failed)) {
             return true;
         }
         path.pop_back();
     }
+
+    failed[std::move(failed_key)] = depth_left;
     return false;
 }
 
@@ -259,9 +517,11 @@ inline std::vector<Move> iddfs_phase(const Cube& start, Phase phase, int max_dep
     if (phase_goal(start, phase)) {
         return {};
     }
+    std::unordered_map<std::string, int> failed;
+    failed.reserve(phase == Phase::PermutationReduction ? 1000000 : 50000);
     for (int depth = 1; depth <= max_depth; ++depth) {
         std::vector<Move> path;
-        if (dfs_phase(start, phase, depth, '\0', path)) {
+        if (dfs_phase(start, phase, depth, '\0', path, failed)) {
             return path;
         }
     }
