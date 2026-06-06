@@ -11,6 +11,7 @@
 #include "cube.hpp"
 #include "moves.hpp"
 #include "tables.hpp"
+#include<bits/stdc++.h>
 
 namespace thistle {
 
@@ -381,6 +382,7 @@ inline std::vector<Move> search_half_turn_phase(const Cube& start, int max_depth
     parents.emplace(start_key, HalfTurnParent{-1, Move{'\0', 0}, 0});
     queue.push_back(HalfTurnSearchNode{start, start_key});
 
+    // BFS with pruning based on the half-turn membership table.
     while (!queue.empty()) {
         const HalfTurnSearchNode node = queue.front();
         queue.pop_front();

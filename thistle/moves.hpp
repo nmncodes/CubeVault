@@ -5,8 +5,6 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <bits/stdc++.h>
-
 using namespace std ; 
 
 namespace thistle {

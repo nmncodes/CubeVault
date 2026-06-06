@@ -34,8 +34,14 @@ int main(int argc, char** argv) {
     try {
         const std::string scramble_text = argv[1];
         const auto scramble = thistle::parse_algorithm(scramble_text);
+
+
         const thistle::ThistlethwaiteSolver solver;
+
+
         const auto solution = solver.solve_scramble(scramble);
+
+        
         const std::string algorithm = thistle::join_moves(solution);
 
         std::cout << "{\"ok\":true,\"method\":\"Thistlethwaite\",\"algorithm\":\""
