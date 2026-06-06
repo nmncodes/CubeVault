@@ -419,8 +419,7 @@ const SolutionReplayDialog = ({
               </span>
               {activeMethod === "Thistlethwaite" && (
                 <span className="text-xs text-muted-foreground">
-                  Note: This method is computationally heavy and can take up to 5 minutes on some scrambles.
-                </span>
+                Due to tier restrictions, the Thistlethwaite engine is disabled here, clone the repo to see it in action locally.                </span>
               )}
             </span>
           </div>
