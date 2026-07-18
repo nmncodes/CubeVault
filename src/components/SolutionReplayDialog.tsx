@@ -417,10 +417,10 @@ const SolutionReplayDialog = ({
                 <Loader2 size={16} className="animate-spin text-primary" />
                 Finding {activeMethod} path...
               </span>
-              {activeMethod === "Thistlethwaite" && (
+              {/* {activeMethod === "Thistlethwaite" && (
                 <span className="text-xs text-muted-foreground">
                 Due to tier restrictions, the Thistlethwaite engine is disabled here, clone the repo to see it in action locally.                </span>
-              )}
+              )} */}
             </span>
           </div>
         )}
