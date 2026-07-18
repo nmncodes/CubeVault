@@ -15,6 +15,38 @@
 
 namespace thistle {
 
+struct Uint64Hash {
+    std::size_t operator()(std::uint64_t x) const {
+        x ^= x >> 30;
+        x *= 0xbf58476d1ce4e5b9ULL;
+        x ^= x >> 27;
+        x *= 0x94d049bb133111ebULL;
+        x ^= x >> 31;
+        return static_cast<std::size_t>(x);
+    }
+};
+
+struct CubeStateKey {
+    std::uint64_t a;
+    std::uint64_t b;
+
+    bool operator==(const CubeStateKey& other) const {
+        return a == other.a && b == other.b;
+    }
+};
+
+struct CubeStateHash {
+    std::size_t operator()(const CubeStateKey& k) const {
+        std::uint64_t x = k.a ^ (k.b + 0x9e3779b97f4a7c15ULL + (k.a << 6) + (k.a >> 2));
+        x ^= x >> 30;
+        x *= 0xbf58476d1ce4e5b9ULL;
+        x ^= x >> 27;
+        x *= 0x94d049bb133111ebULL;
+        x ^= x >> 31;
+        return static_cast<std::size_t>(x);
+    }
+};
+
 inline std::vector<Move> all_moves_for_phase(Phase phase) {
     std::vector<Move> moves;
     for (char face : {'L', 'R', 'F', 'B', 'U', 'D'}) {
@@ -322,7 +354,7 @@ public:
 private:
     static constexpr int kMaxDepth = 15;
     static constexpr int kMissingDistance = 99;
-    std::unordered_map<std::uint64_t, std::uint8_t> distances_;
+    std::unordered_map<std::uint64_t, std::uint8_t, Uint64Hash> distances_;
 
     void build() {
         const auto& moves = phase_moves(Phase::PermutationReduction);
@@ -435,13 +467,68 @@ inline bool accepts_phase_goal(const Cube& cube, Phase phase) {
     return half_turn_membership_table().contains(cube);
 }
 
+inline CubeStateKey get_phase_state_key(const Cube& cube, Phase phase, char previous_face) {
+    if (phase == Phase::PermutationReduction) {
+        std::uint64_t a = 0;
+        std::uint64_t b = 0;
+        
+        for (int i=0; i<8; ++i) a = (a << 3) | cube.cp[i];
+        for (int i=0; i<8; ++i) a = (a << 2) | cube.co[i];
+        for (int i=0; i<6; ++i) a = (a << 4) | cube.ep[i];
+        
+        for (int i=6; i<12; ++i) b = (b << 4) | cube.ep[i];
+        for (int i=0; i<12; ++i) b = (b << 1) | cube.eo[i];
+        
+        int face_idx = 0;
+        switch (previous_face) {
+            case 'L': face_idx = 1; break;
+            case 'R': face_idx = 2; break;
+            case 'F': face_idx = 3; break;
+            case 'B': face_idx = 4; break;
+            case 'U': face_idx = 5; break;
+            case 'D': face_idx = 6; break;
+        }
+        b = (b << 3) | static_cast<std::uint64_t>(face_idx);
+        return {a, b};
+    }
+
+    std::uint64_t phase_coord = 0;
+    switch (phase) {
+        case Phase::EdgeOrientation:
+            phase_coord = edge_orientation_coord(cube);
+            break;
+        case Phase::CornerOrientationAndSlice:
+            phase_coord = (static_cast<std::uint64_t>(edge_orientation_coord(cube)) << 24) |
+                          (static_cast<std::uint64_t>(corner_orientation_coord(cube)) << 12) |
+                          slice_mask_coord(cube);
+            break;
+        case Phase::PermutationReduction:
+            // Handled above
+            break;
+        case Phase::HalfTurnSolve:
+            break;
+    }
+    
+    int face_idx = 0;
+    switch (previous_face) {
+        case 'L': face_idx = 1; break;
+        case 'R': face_idx = 2; break;
+        case 'F': face_idx = 3; break;
+        case 'B': face_idx = 4; break;
+        case 'U': face_idx = 5; break;
+        case 'D': face_idx = 6; break;
+    }
+    
+    return {phase_coord, static_cast<std::uint64_t>(face_idx)};
+}
+
 inline bool dfs_phase(
     const Cube& cube,
     Phase phase,
     int depth_left,
     char previous_face,
     std::vector<Move>& path,
-    std::unordered_map<std::string, int>& failed
+    std::unordered_map<CubeStateKey, int, CubeStateHash>& failed
 ) {
     if (accepts_phase_goal(cube, phase)) {
         return true;
@@ -454,8 +541,7 @@ inline bool dfs_phase(
         return false;
     }
 
-    std::string failed_key = full_key(cube);
-    failed_key.push_back(previous_face);
+    CubeStateKey failed_key = get_phase_state_key(cube, phase, previous_face);
     const auto failed_it = failed.find(failed_key);
     if (failed_it != failed.end() && failed_it->second >= depth_left) {
         return false;
@@ -493,7 +579,7 @@ inline bool dfs_phase(
             path.pop_back();
         }
 
-        failed[std::move(failed_key)] = depth_left;
+        failed[failed_key] = depth_left;
         return false;
     }
 
@@ -511,7 +597,7 @@ inline bool dfs_phase(
         path.pop_back();
     }
 
-    failed[std::move(failed_key)] = depth_left;
+    failed[failed_key] = depth_left;
     return false;
 }
 
@@ -519,7 +605,7 @@ inline std::vector<Move> iddfs_phase(const Cube& start, Phase phase, int max_dep
     if (phase_goal(start, phase)) {
         return {};
     }
-    std::unordered_map<std::string, int> failed;
+    std::unordered_map<CubeStateKey, int, CubeStateHash> failed;
     failed.reserve(phase == Phase::PermutationReduction ? 1000000 : 50000);
     for (int depth = 1; depth <= max_depth; ++depth) {
         std::vector<Move> path;
