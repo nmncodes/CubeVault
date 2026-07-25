@@ -63,4 +63,5 @@ def solve(payload: SolveRequest) -> dict[str, object]:
         "states": result.get("states"),
         "elapsedMs": result.get("elapsedMs"),
         "backend": "render-python",
+        "logs": result.get("logs", []),
     }

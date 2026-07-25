@@ -75,6 +75,7 @@ class handler(BaseHTTPRequestHandler):
             "states": result.get("states"),
             "elapsedMs": result.get("elapsedMs"),
             "backend": "vercel-python",
+            "logs": result.get("logs", []),
         }
 
         if (

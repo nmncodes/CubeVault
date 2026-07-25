@@ -7,9 +7,10 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <unordered_map>
+#include <chrono>
 #include <fstream>
 #include <iostream>
+#include <unordered_map>
 
 #include "cube.hpp"
 #include "moves.hpp"
@@ -318,6 +319,7 @@ private:
     }
 
     void build() {
+        auto start = std::chrono::high_resolution_clock::now();
         const auto& moves = phase_moves(Phase::HalfTurnSolve);
         std::deque<Cube> queue;
         Cube solved;
@@ -346,6 +348,9 @@ private:
                 queue.push_back(next);
             }
         }
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> ms = end - start;
+        std::cerr << "[Thistlethwaite] Built HalfTurnPruningTable in " << ms.count() << " ms\n";
     }
 };
 
@@ -403,6 +408,7 @@ private:
     }
 
     void build() {
+        auto start = std::chrono::high_resolution_clock::now();
         const auto& moves = phase_moves(Phase::PermutationReduction);
         std::deque<Cube> queue;
         Cube solved;
@@ -434,6 +440,9 @@ private:
                 queue.push_back(next);
             }
         }
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> ms = end - start;
+        std::cerr << "[Thistlethwaite] Built PermutationReductionPruningTable in " << ms.count() << " ms\n";
     }
 };
 
@@ -497,6 +506,7 @@ inline CubeStateKey get_phase_state_key(const Cube& cube, Phase phase, char prev
             // Handled above
             break;
         case Phase::HalfTurnSolve:
+            phase_coord = static_cast<std::uint64_t>(half_turn_compact_key(cube));
             break;
     }
     
@@ -630,14 +640,29 @@ inline void append_and_apply(Cube& cube, std::vector<Move>& solution, const std:
 
 class ThistlethwaiteSolver {
 public:
-    std::vector<Move> solve_scramble(const std::vector<Move>& scramble) const {
+    std::vector<Move> solve_scramble(const std::vector<Move>& scramble, std::vector<std::string>& logs) const {
         Cube cube = apply_algorithm(Cube{}, scramble);
         std::vector<Move> solution;
 
-        append_and_apply(cube, solution, search_phase(cube, Phase::EdgeOrientation, 7));
-        append_and_apply(cube, solution, search_phase(cube, Phase::CornerOrientationAndSlice, 13));
-        append_and_apply(cube, solution, search_phase(cube, Phase::PermutationReduction, 15));
-        append_and_apply(cube, solution, search_phase(cube, Phase::HalfTurnSolve, 17));
+        auto run_phase = [&](Phase phase, int depth) {
+            auto start_time = std::chrono::high_resolution_clock::now();
+            auto path = search_phase(cube, phase, depth);
+            auto end_time = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> ms = end_time - start_time;
+            
+            std::string log_msg = std::string("[Thistlethwaite] ") + 
+                                  phase_names[static_cast<int>(phase)] + 
+                                  " solved in " + std::to_string(ms.count()) + 
+                                  " ms (" + std::to_string(path.size()) + " moves)";
+            logs.push_back(log_msg);
+            
+            append_and_apply(cube, solution, path);
+        };
+
+        run_phase(Phase::EdgeOrientation, 7);
+        run_phase(Phase::CornerOrientationAndSlice, 13);
+        run_phase(Phase::PermutationReduction, 15);
+        run_phase(Phase::HalfTurnSolve, 17);
 
         if (!cube.solved()) {
             throw std::runtime_error("Thistlethwaite phase search ended without solving the cube.");

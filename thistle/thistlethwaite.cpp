@@ -43,15 +43,18 @@ int main(int argc, char** argv) {
 
 
         const thistle::ThistlethwaiteSolver solver;
-
-
-        const auto solution = solver.solve_scramble(scramble);
-
+        std::vector<std::string> logs;
+        const auto solution = solver.solve_scramble(scramble, logs);
         
         const std::string algorithm = thistle::join_moves(solution);
 
         std::cout << "{\"ok\":true,\"method\":\"Thistlethwaite\",\"algorithm\":\""
-                  << json_escape(algorithm) << "\"}\n";
+                  << json_escape(algorithm) << "\",\"logs\":[";
+        for (std::size_t i = 0; i < logs.size(); ++i) {
+            if (i > 0) std::cout << ",";
+            std::cout << "\"" << json_escape(logs[i]) << "\"";
+        }
+        std::cout << "]}\n";
         return 0;
     } catch (const std::exception& exc) {
         std::cout << "{\"ok\":false,\"error\":\"" << json_escape(exc.what()) << "\"}\n";

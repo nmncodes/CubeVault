@@ -17,6 +17,7 @@ type SolverResponse = {
   moveCount: number;
   states: string[];
   elapsedMs: number;
+  logs?: string[];
 };
 
 type PythonTarget = {
@@ -157,6 +158,7 @@ function runSolverWithTarget(
           moveCount: parsed.moveCount,
           states: parsed.states,
           elapsedMs: parsed.elapsedMs,
+          logs: parsed.logs,
         });
       } catch (error) {
         reject(

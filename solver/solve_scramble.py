@@ -174,7 +174,7 @@ def ensure_thistle_binary() -> Path:
     return _copy_thistle_runtime_binary()
 
 
-def solve_with_thistlethwaite(tokens: list[str]) -> list[str]:
+def solve_with_thistlethwaite(tokens: list[str]) -> tuple[list[str], list[str]]:
     binary = ensure_thistle_binary()
     try:
         completed = subprocess.run(
@@ -214,11 +214,12 @@ def solve_with_thistlethwaite(tokens: list[str]) -> list[str]:
         raise RuntimeError(payload.get("error") or "Thistlethwaite solver failed.")
 
     algorithm = payload.get("algorithm")
+    logs = payload.get("logs", [])
     if not isinstance(algorithm, str):
         raise RuntimeError("Thistlethwaite solver returned malformed payload.")
 
     solution_tokens = normalize_tokens(algorithm) if algorithm.strip() else []
-    return solution_tokens
+    return solution_tokens, logs
 
 
 def solve_scramble(scramble: str, method: str) -> dict[str, object]:
@@ -230,8 +231,9 @@ def solve_scramble(scramble: str, method: str) -> dict[str, object]:
     tokens = normalize_tokens(scramble)
 
     started = time.perf_counter()
+    logs = []
     if method == "Thistlethwaite":
-        solution_tokens = solve_with_thistlethwaite(tokens)
+        solution_tokens, logs = solve_with_thistlethwaite(tokens)
     else:
         utils, Cube, Move = load_rubik_solver()
         cube = Cube()
@@ -268,6 +270,7 @@ def solve_scramble(scramble: str, method: str) -> dict[str, object]:
         "moveCount": len(solution_tokens),
         "states": states,
         "elapsedMs": elapsed_ms,
+        "logs": logs,
     }
 
 

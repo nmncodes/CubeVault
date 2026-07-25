@@ -9,6 +9,7 @@ type SolverApiResponse = {
   moveCount: number;
   states: string[];
   backend?: string;
+  logs?: string[];
 };
 
 function getSolverEndpoint() {
@@ -54,6 +55,10 @@ export async function fetchSolutionForScramble(
     !data.states.every((state) => typeof state === "string")
   ) {
     throw new Error("Solver returned an invalid response.");
+  }
+  
+  if (Array.isArray(data.logs)) {
+    data.logs.forEach(log => console.log(log));
   }
 
   return {
