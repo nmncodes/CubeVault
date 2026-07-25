@@ -123,6 +123,15 @@ def ensure_thistle_binary() -> Path:
     ]
     THISTLE_BUILD_DIR.mkdir(parents=True, exist_ok=True)
 
+    try:
+        now = time.time()
+        for p in THISTLE_BUILD_DIR.glob("thistlethwaite.*"):
+            if "cached" not in p.name and ".bin" not in p.name:
+                if now - p.stat().st_mtime > 3600:
+                    p.unlink(missing_ok=True)
+    except OSError:
+        pass
+
     if _thistle_cache_is_fresh(thistle_sources):
         return _copy_thistle_runtime_binary()
 

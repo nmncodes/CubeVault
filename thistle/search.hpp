@@ -7,11 +7,13 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <fstream>
+#include <iostream>
 
 #include "cube.hpp"
 #include "moves.hpp"
 #include "tables.hpp"
-#include<bits/stdc++.h>
 
 namespace thistle {
 
@@ -278,69 +280,87 @@ struct MoveCandidate {
     int lower_bound;
 };
 
-struct HalfTurnSearchNode {
-    Cube cube;
-    int key;
-};
+static std::string g_cache_dir = ".";
 
-struct HalfTurnParent {
-    int parent_key;
-    Move move;
-    std::uint8_t depth;
-};
-
-class HalfTurnMembershipTable {
+class HalfTurnPruningTable {
 public:
-    HalfTurnMembershipTable() {
-        build();
+    static constexpr int kMissingDistance = 99;
+
+    HalfTurnPruningTable() {
+        if (!load(g_cache_dir + "/halfturn.bin")) {
+            build();
+            save(g_cache_dir + "/halfturn.bin");
+        }
     }
 
-    bool contains(const Cube& cube) const {
+    int distance(const Cube& cube) const {
         const int key = half_turn_compact_key(cube);
-        return key >= 0 && members_[key] != 0;
+        if (key < 0) return kMissingDistance;
+        return distances_[key];
     }
 
 private:
-    std::vector<std::uint8_t> members_;
+    std::vector<std::uint8_t> distances_;
+
+    bool load(const std::string& path) {
+        std::ifstream f(path, std::ios::binary);
+        if (!f) return false;
+        distances_.resize(kHalfTurnKeySpace);
+        f.read(reinterpret_cast<char*>(distances_.data()), distances_.size());
+        return f.good();
+    }
+
+    void save(const std::string& path) const {
+        std::ofstream f(path, std::ios::binary);
+        if (f) {
+            f.write(reinterpret_cast<const char*>(distances_.data()), distances_.size());
+        }
+    }
 
     void build() {
         const auto& moves = phase_moves(Phase::HalfTurnSolve);
         std::deque<Cube> queue;
         Cube solved;
 
-        members_.assign(kHalfTurnKeySpace, 0);
-        members_[half_turn_compact_key(solved)] = 1;
+        distances_.assign(kHalfTurnKeySpace, kMissingDistance);
+        distances_[half_turn_compact_key(solved)] = 0;
         queue.push_back(solved);
 
         while (!queue.empty()) {
             const Cube cube = queue.front();
             queue.pop_front();
+            
+            const int current_dist = distance(cube);
+            const auto next_distance = static_cast<std::uint8_t>(current_dist + 1);
 
             for (const auto& move : moves) {
                 Cube next = cube;
                 next.apply(move);
 
                 const int key = half_turn_compact_key(next);
-                if (key < 0 || members_[key] != 0) {
+                if (key < 0 || distances_[key] != kMissingDistance) {
                     continue;
                 }
 
-                members_[key] = 1;
+                distances_[key] = next_distance;
                 queue.push_back(next);
             }
         }
     }
 };
 
-inline const HalfTurnMembershipTable& half_turn_membership_table() {
-    static const HalfTurnMembershipTable table;
+inline const HalfTurnPruningTable& half_turn_pruning_table() {
+    static const HalfTurnPruningTable table;
     return table;
 }
 
 class PermutationReductionPruningTable {
 public:
     PermutationReductionPruningTable() {
-        build();
+        if (!load(g_cache_dir + "/permred.bin")) {
+            build();
+            save(g_cache_dir + "/permred.bin");
+        }
     }
 
     int distance(const Cube& cube) const {
@@ -355,6 +375,32 @@ private:
     static constexpr int kMaxDepth = 15;
     static constexpr int kMissingDistance = 99;
     std::unordered_map<std::uint64_t, std::uint8_t, Uint64Hash> distances_;
+
+    bool load(const std::string& path) {
+        std::ifstream f(path, std::ios::binary);
+        if (!f) return false;
+        std::uint32_t count;
+        if (!f.read(reinterpret_cast<char*>(&count), sizeof(count))) return false;
+        distances_.reserve(count);
+        for (std::uint32_t i = 0; i < count; ++i) {
+            std::uint64_t key; std::uint8_t val;
+            f.read(reinterpret_cast<char*>(&key), sizeof(key));
+            f.read(reinterpret_cast<char*>(&val), sizeof(val));
+            distances_.emplace(key, val);
+        }
+        return f.good();
+    }
+
+    void save(const std::string& path) const {
+        std::ofstream f(path, std::ios::binary);
+        if (!f) return;
+        std::uint32_t count = distances_.size();
+        f.write(reinterpret_cast<const char*>(&count), sizeof(count));
+        for (const auto& kv : distances_) {
+            f.write(reinterpret_cast<const char*>(&kv.first), sizeof(kv.first));
+            f.write(reinterpret_cast<const char*>(&kv.second), sizeof(kv.second));
+        }
+    }
 
     void build() {
         const auto& moves = phase_moves(Phase::PermutationReduction);
@@ -396,65 +442,10 @@ inline const PermutationReductionPruningTable& permutation_reduction_pruning_tab
     return table;
 }
 
-inline std::vector<Move> search_half_turn_phase(const Cube& start, int max_depth) {
-    if (start.solved()) {
-        return {};
-    }
-
-    const int start_key = half_turn_compact_key(start);
-    if (start_key < 0) {
-        throw std::runtime_error("No path found for G3->G4 half-turn solve");
-    }
-
-    const auto& moves = phase_moves(Phase::HalfTurnSolve);
-    std::deque<HalfTurnSearchNode> queue;
-    std::unordered_map<int, HalfTurnParent> parents;
-
-    parents.reserve(700000);
-    parents.emplace(start_key, HalfTurnParent{-1, Move{'\0', 0}, 0});
-    queue.push_back(HalfTurnSearchNode{start, start_key});
-
-    // BFS with pruning based on the half-turn membership table.
-    while (!queue.empty()) {
-        const HalfTurnSearchNode node = queue.front();
-        queue.pop_front();
-
-        const auto parent_it = parents.find(node.key);
-        if (parent_it == parents.end() || parent_it->second.depth >= max_depth) {
-            continue;
-        }
-
-        const auto next_depth = static_cast<std::uint8_t>(parent_it->second.depth + 1);
-        for (const auto& move : moves) {
-            Cube next = node.cube;
-            next.apply(move);
-
-            const int key = half_turn_compact_key(next);
-            if (key < 0 || parents.find(key) != parents.end()) {
-                continue;
-            }
-
-            parents.emplace(key, HalfTurnParent{node.key, move, next_depth});
-            if (next.solved()) {
-                std::vector<Move> path;
-                int cursor = key;
-                while (cursor != start_key) {
-                    const auto it = parents.find(cursor);
-                    if (it == parents.end() || it->second.parent_key < 0) {
-                        throw std::runtime_error("No path found for G3->G4 half-turn solve");
-                    }
-                    path.push_back(it->second.move);
-                    cursor = it->second.parent_key;
-                }
-                std::reverse(path.begin(), path.end());
-                return path;
-            }
-
-            queue.push_back(HalfTurnSearchNode{next, key});
-        }
-    }
-
-    throw std::runtime_error("No path found for G3->G4 half-turn solve");
+inline void init_tables(const std::string& cache_dir) {
+    g_cache_dir = cache_dir;
+    permutation_reduction_pruning_table();
+    half_turn_pruning_table();
 }
 
 inline bool accepts_phase_goal(const Cube& cube, Phase phase) {
@@ -464,7 +455,7 @@ inline bool accepts_phase_goal(const Cube& cube, Phase phase) {
     if (phase != Phase::PermutationReduction) {
         return true;
     }
-    return half_turn_membership_table().contains(cube);
+    return half_turn_pruning_table().distance(cube) != HalfTurnPruningTable::kMissingDistance;
 }
 
 inline CubeStateKey get_phase_state_key(const Cube& cube, Phase phase, char previous_face) {
@@ -540,6 +531,10 @@ inline bool dfs_phase(
         permutation_reduction_pruning_table().distance(cube) > depth_left) {
         return false;
     }
+    if (phase == Phase::HalfTurnSolve &&
+        half_turn_pruning_table().distance(cube) > depth_left) {
+        return false;
+    }
 
     CubeStateKey failed_key = get_phase_state_key(cube, phase, previous_face);
     const auto failed_it = failed.find(failed_key);
@@ -548,7 +543,7 @@ inline bool dfs_phase(
     }
 
     const auto& moves = phase_moves(phase);
-    if (phase == Phase::PermutationReduction) {
+    if (phase == Phase::PermutationReduction || phase == Phase::HalfTurnSolve) {
         std::vector<MoveCandidate> candidates;
         candidates.reserve(moves.size());
 
@@ -560,7 +555,13 @@ inline bool dfs_phase(
 
             Cube next = cube;
             next.apply(move);
-            const int lower_bound = permutation_reduction_pruning_table().distance(next);
+            int lower_bound = 0;
+            if (phase == Phase::PermutationReduction) {
+                lower_bound = permutation_reduction_pruning_table().distance(next);
+            } else {
+                lower_bound = half_turn_pruning_table().distance(next);
+            }
+            
             if (lower_bound > depth_left - 1) {
                 continue;
             }
@@ -617,11 +618,7 @@ inline std::vector<Move> iddfs_phase(const Cube& start, Phase phase, int max_dep
 }
 
 inline std::vector<Move> search_phase(const Cube& start, Phase phase, int max_depth) {
-    if (phase != Phase::HalfTurnSolve) {
-        return iddfs_phase(start, phase, max_depth);
-    }
-
-    return search_half_turn_phase(start, max_depth);
+    return iddfs_phase(start, phase, max_depth);
 }
 
 inline void append_and_apply(Cube& cube, std::vector<Move>& solution, const std::vector<Move>& phase_path) {

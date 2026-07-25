@@ -1,6 +1,5 @@
 #include <exception>
 #include <iostream>
-#include <string>
 
 #include "moves.hpp"
 #include "search.hpp"
@@ -29,9 +28,16 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    
-
     try {
+        std::string cache_dir = ".";
+        if (argc > 0) {
+            std::string argv0 = argv[0];
+            auto pos = argv0.find_last_of("/\\");
+            if (pos != std::string::npos) {
+                cache_dir = argv0.substr(0, pos);
+            }
+        }
+        thistle::init_tables(cache_dir);
         const std::string scramble_text = argv[1];
         const auto scramble = thistle::parse_algorithm(scramble_text);
 
