@@ -275,6 +275,11 @@ inline int half_turn_compact_key(const Cube& cube) {
            e2;
 }
 
+inline int corner_slice_compact_key(const Cube& cube) {
+    return (static_cast<int>(corner_orientation_coord(cube)) << 12) |
+           static_cast<int>(slice_mask_coord(cube));
+}
+
 struct MoveCandidate {
     Move move;
     Cube cube;
@@ -356,6 +361,82 @@ private:
 
 inline const HalfTurnPruningTable& half_turn_pruning_table() {
     static const HalfTurnPruningTable table;
+    return table;
+}
+
+class CornerOrientationSlicePruningTable {
+public:
+    static constexpr int kMissingDistance = 99;
+    static constexpr int kKeySpace = 8957952;
+
+    CornerOrientationSlicePruningTable() {
+        if (!load(g_cache_dir + "/cornerslice.bin")) {
+            build();
+            save(g_cache_dir + "/cornerslice.bin");
+        }
+    }
+
+    int distance(const Cube& cube) const {
+        const int key = corner_slice_compact_key(cube);
+        return distances_[key];
+    }
+
+private:
+    std::vector<std::uint8_t> distances_;
+
+    bool load(const std::string& path) {
+        std::ifstream f(path, std::ios::binary);
+        if (!f) return false;
+        distances_.resize(kKeySpace);
+        f.read(reinterpret_cast<char*>(distances_.data()), distances_.size());
+        return f.good();
+    }
+
+    void save(const std::string& path) const {
+        std::ofstream f(path, std::ios::binary);
+        if (f) {
+            f.write(reinterpret_cast<const char*>(distances_.data()), distances_.size());
+        }
+    }
+
+    void build() {
+        auto start = std::chrono::high_resolution_clock::now();
+        const auto& moves = phase_moves(Phase::CornerOrientationAndSlice);
+        std::deque<Cube> queue;
+        Cube solved;
+
+        distances_.assign(kKeySpace, kMissingDistance);
+        distances_[corner_slice_compact_key(solved)] = 0;
+        queue.push_back(solved);
+
+        while (!queue.empty()) {
+            const Cube cube = queue.front();
+            queue.pop_front();
+            
+            const int current_dist = distance(cube);
+            const auto next_distance = static_cast<std::uint8_t>(current_dist + 1);
+
+            for (const auto& move : moves) {
+                Cube next = cube;
+                next.apply(move);
+
+                const int key = corner_slice_compact_key(next);
+                if (distances_[key] != kMissingDistance) {
+                    continue;
+                }
+
+                distances_[key] = next_distance;
+                queue.push_back(next);
+            }
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> ms = end - start;
+        std::cerr << "[Thistlethwaite] Built CornerOrientationSlicePruningTable in " << ms.count() << " ms\n";
+    }
+};
+
+inline const CornerOrientationSlicePruningTable& corner_slice_pruning_table() {
+    static const CornerOrientationSlicePruningTable table;
     return table;
 }
 
@@ -453,6 +534,7 @@ inline const PermutationReductionPruningTable& permutation_reduction_pruning_tab
 
 inline void init_tables(const std::string& cache_dir) {
     g_cache_dir = cache_dir;
+    corner_slice_pruning_table();
     permutation_reduction_pruning_table();
     half_turn_pruning_table();
 }
@@ -537,6 +619,10 @@ inline bool dfs_phase(
     if (depth_left == 0) {
         return false;
     }
+    if (phase == Phase::CornerOrientationAndSlice &&
+        corner_slice_pruning_table().distance(cube) > depth_left) {
+        return false;
+    }
     if (phase == Phase::PermutationReduction &&
         permutation_reduction_pruning_table().distance(cube) > depth_left) {
         return false;
@@ -553,7 +639,7 @@ inline bool dfs_phase(
     }
 
     const auto& moves = phase_moves(phase);
-    if (phase == Phase::PermutationReduction || phase == Phase::HalfTurnSolve) {
+    if (phase == Phase::CornerOrientationAndSlice || phase == Phase::PermutationReduction || phase == Phase::HalfTurnSolve) {
         std::vector<MoveCandidate> candidates;
         candidates.reserve(moves.size());
 
@@ -566,7 +652,9 @@ inline bool dfs_phase(
             Cube next = cube;
             next.apply(move);
             int lower_bound = 0;
-            if (phase == Phase::PermutationReduction) {
+            if (phase == Phase::CornerOrientationAndSlice) {
+                lower_bound = corner_slice_pruning_table().distance(next);
+            } else if (phase == Phase::PermutationReduction) {
                 lower_bound = permutation_reduction_pruning_table().distance(next);
             } else {
                 lower_bound = half_turn_pruning_table().distance(next);
